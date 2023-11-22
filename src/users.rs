@@ -100,7 +100,6 @@ impl TwAPI {
             .build()
             .unwrap();
         let text = self.client.execute(req).unwrap().text().unwrap();
-        println!("text is {text}");
         let res: Value = serde_json::from_str(&text).unwrap();
         debug!("following res {res}");
         return Ok(res);
