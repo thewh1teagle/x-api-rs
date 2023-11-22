@@ -1,37 +1,47 @@
 use super::{TwAPI, BEARER_TOKEN, GUEST_ACTIVE_URL, LOGIN_URL, VERIFY_CREDENTIALS_URL};
 use log::debug;
-use reqwest::{blocking::{self}, Error};
+
+use env_logger;
 use serde::Deserialize;
 use serde_json::{self, json};
-use env_logger;
 
-#[derive(Deserialize, Debug)]
+use std::error::Error;
+use thiserror::Error;
+
+#[derive(Clone, Debug, Error)]
+#[error("Suspicious Login")]
+pub struct SuspiciousLoginError(
+    pub String,
+    pub Flow, // error message, latest flow
+);
+
+#[derive(Deserialize, Debug, Clone)]
 pub struct User {
     pub id: i64,
     pub id_str: String,
     pub name: String,
     pub screen_name: String,
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct OpenAccount {
     pub user: Option<User>,
     pub next_link: Option<Link>,
     pub attribution_event: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Subtask {
     pub subtask_id: String,
     pub open_account: Option<OpenAccount>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct ApiError {
     pub code: i64,
     pub message: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Flow {
     pub errors: Option<Vec<ApiError>>,
     pub flow_token: String,
@@ -40,25 +50,25 @@ pub struct Flow {
     pub js_instrumentation: Option<Insrumentation>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Insrumentation {
     pub url: String,
     pub timeout_ms: i64,
     pub next_link: Link,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Link {
     pub link_type: String,
     pub link_id: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct GuestToken {
     pub guest_token: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct VerifyCredentials {
     pub errors: Option<Vec<ApiError>>,
 }
@@ -76,10 +86,9 @@ impl TwAPI {
             guest_token: String::from(""),
         };
     }
-    fn get_flow(&mut self, body: serde_json::Value) -> Result<Flow, Box<dyn std::error::Error>> {
+    fn get_flow(&mut self, body: serde_json::Value) -> Result<Flow, Box<dyn Error>> {
         if self.guest_token.is_empty() {
             self.get_guest_token()?
-            
         }
         let res = self
             .client
@@ -92,8 +101,7 @@ impl TwAPI {
             .header("X-Twitter-Active-User", "yes")
             .header("X-Twitter-Client-Language", "en")
             .json(&body)
-            .send()
-            ?;
+            .send()?;
 
         let cookies = res.cookies();
         for cookie in cookies {
@@ -107,50 +115,43 @@ impl TwAPI {
         return Ok(result);
     }
 
-    fn get_flow_token(&mut self, data: serde_json::Value) -> Result<Option<Flow>, String> {
+    pub fn get_flow_token(
+        &mut self,
+        data: serde_json::Value,
+    ) -> Result<Option<Flow>, Box<dyn Error>> {
         let res = self.get_flow(data);
         match res {
             Ok(info) => {
-                
                 if info.subtasks.len() > 0 {
                     let subtask_id = info.subtasks[0].subtask_id.as_str();
                     match subtask_id {
                         // "LoginEnterAlternateIdentifierSubtask"
-                        "LoginAcid"
-                        | "LoginTwoFactorAuthChallenge"
-                        | "DenyLoginSubtask" => {
-                            return Err(format!("Auth error: {}", subtask_id));
+                        "LoginAcid" | "LoginTwoFactorAuthChallenge" | "DenyLoginSubtask" => {
+                            return Err(format!("Auth error: {}", subtask_id).into());
                         }
                         _ => return Ok(Some(info)),
                     }
                 }
                 return Ok(Some(info));
             }
-            Err(e) => Err(format!("Request error: {}", e.to_string())),
+            Err(e) => Err(format!("Request error: {}", e.to_string()).into()),
         }
     }
 
-    fn get_guest_token(&mut self) -> Result<(), Error> {
+    fn get_guest_token(&mut self) -> Result<(), Box<dyn Error>> {
         let token = format!("Bearer {}", BEARER_TOKEN);
         let res = self
             .client
             .post(GUEST_ACTIVE_URL)
             .header("Authorization", token)
-            .send()
-            ;
-        match res {
-            Ok(r) => {
-                let op = r.json::<serde_json::Value>()?;
-                let guest_token = op.get("guest_token").unwrap();
-                self.guest_token = guest_token.to_string();
-                return Ok(());
-            }
-            Err(e) => Err(e),
-        }
+            .send()?;
+        let op = res.json::<serde_json::Value>()?;
+        let guest_token = op.get("guest_token").unwrap();
+        self.guest_token = guest_token.to_string();
+        Ok(())
     }
 
-
-    fn read_string(&self) -> String {
+    pub fn read_string(&self) -> String {
         let mut input = String::new();
         std::io::stdin()
             .read_line(&mut input)
@@ -158,50 +159,7 @@ impl TwAPI {
         input
     }
 
-
-    fn handle_suspicies(&mut self, token: String, subtask_id: String) -> Result<Flow, Error> {
-        debug!("handle suspicies");
-        println!("Enter your username (eg. @user): ");
-        let username = self.read_string();
-        let body = json!({
-            "flow_token": token,
-            "subtask_inputs": [{"subtask_id": subtask_id, "enter_text": {"text": username,"link":"next_link"}}]
-        });
-
-
-        let res = self
-            .client
-            .post(LOGIN_URL)
-            .header("Authorization", format!("Bearer {}", BEARER_TOKEN))
-            .header("Content-Type", "application/json")
-            .header("User-Agent", "TwitterAndroid/99")
-            .header("X-Guest-Token", self.guest_token.replace("\"", ""))
-            .header("X-Twitter-Auth-Type", "OAuth2Client")
-            .header("X-Twitter-Active-User", "yes")
-            .header("X-Twitter-Client-Language", "en")
-            .json(&body)
-            .send()
-            ?;
-
-        let cookies = res.cookies();
-        for cookie in cookies {
-            if cookie.name().eq("ct0") {
-                self.csrf_token = cookie.value().to_string()
-            }
-        }
-        let result: Flow = res.json()?;
-        return Ok(result);
-
-        
-    }
-
-    pub fn login(
-        &mut self,
-        user_name: &str,
-        password: &str,
-        confirmation: &str,
-    ) -> Result<Option<Flow>, String> {
-        // flow start
+    pub fn before_password_steps(&mut self, username: String) -> Result<Flow, Box<dyn Error>> {
         let data = json!(
             {
                 "flow_name": "login",
@@ -243,7 +201,7 @@ impl TwAPI {
                             "key":           "user_identifier",
                             "response_data": {
                                 "text_data" :{
-                                    "result": user_name
+                                    "result": username
                                 }
                             }
                         }],
@@ -253,26 +211,44 @@ impl TwAPI {
             }
         );
 
-        let mut flow_token = self.get_flow_token(data).unwrap().unwrap();
-        let token = flow_token.flow_token.to_owned();
-        let subtask_id = flow_token.subtasks[0].subtask_id.clone();
+        let mut flow = self.get_flow_token(data).unwrap().unwrap();
+        let token = flow.flow_token.to_owned();
+        let subtask_id = flow.subtasks[0].subtask_id.clone();
 
+        // asking for username because of suspicies log in
         if subtask_id == "LoginEnterAlternateIdentifierSubtask" {
-            println!("Enter your username (eg. @user): ");
-            let username = self.read_string();
+            return Err(SuspiciousLoginError("".into(), flow).into());
+        }
+        Ok(flow)
+    }
+
+    pub fn login(
+        &mut self,
+        username: &str,
+        password: &str,
+        confirmation: &str,
+        latest_flow: Option<Flow>,
+    ) -> Result<Option<Flow>, Box<dyn Error>> {
+        // flow start
+
+        let mut flow: Flow;
+        if latest_flow.is_some() {
+            debug!("taking latest flow");
+            flow = latest_flow.unwrap();
+            let subtask_id = flow.subtasks[0].subtask_id.clone();
             let data = json!({
-                "flow_token": token,
+                "flow_token": flow.flow_token,
                 "subtask_inputs": [{"subtask_id": subtask_id, "enter_text": {"text": username,"link":"next_link"}}]
             });
-            
             // self.handle_suspicies(token.clone(), subtask_id.clone());
-            flow_token = self.get_flow_token(data).unwrap().unwrap();
+            flow = self.get_flow_token(data).unwrap().unwrap();
+        } else {
+            flow = self.before_password_steps(username.into())?;
         }
-
         // flow password step
         let data = json!(
             {
-                "flow_token": flow_token.flow_token,
+                "flow_token": flow.flow_token,
                 "subtask_inputs": [{
                     "subtask_id":     "LoginEnterPassword",
                     "enter_password": {
@@ -284,7 +260,6 @@ impl TwAPI {
         );
 
         let flow_token = self.get_flow_token(data)?.unwrap().flow_token;
-
 
         // flow duplication check
         let data = json!(
@@ -304,7 +279,7 @@ impl TwAPI {
             Err(e) => {
                 let mut confirmation_subtask = "";
                 for item in vec!["LoginAcid", "LoginTwoFactorAuthChallenge"] {
-                    if e.contains(item) {
+                    if e.to_string().contains(item) {
                         confirmation_subtask = item;
                         break;
                     }
@@ -315,7 +290,7 @@ impl TwAPI {
                             "confirmation data required for {}",
                             confirmation_subtask.to_owned()
                         );
-                        return Err(msg);
+                        return Err(msg.into());
                     }
                     let data = json!(
                         {
