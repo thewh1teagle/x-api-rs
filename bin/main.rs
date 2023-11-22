@@ -20,22 +20,6 @@ fn main() {
                 let username = api.read_string();
                 api.login(&username, &password, "".into(), Some(error.1.clone()));
             }
-            // match err {
-            //     SuspiciousLoginError => {
-            //         debug!("Suspicious error!!!");
-            //         let error = err.downcast_ref::<SuspiciousLoginError>();
-
-            //         // println!("Enter your username (eg. @user): ");
-            //         // let username = api.read_string();
-            //         // let data = json!({
-            //         //     "flow_token": token,
-            //         //     "subtask_inputs": [{"subtask_id": subtask_id, "enter_text": {"text": username,"link":"next_link"}}]
-            //         // });
-            //         // // self.handle_suspicies(token.clone(), subtask_id.clone());
-            //         // let flow_token = api.get_flow_token(data).unwrap().unwrap();
-            //     }
-            // }
-
         }
         Ok(_) => {}
     }
