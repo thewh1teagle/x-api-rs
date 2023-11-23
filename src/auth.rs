@@ -75,7 +75,7 @@ pub struct VerifyCredentials {
 
 impl TwAPI {
     pub fn new() -> TwAPI {
-        env_logger::try_init();
+        env_logger::try_init().unwrap();
         let client = reqwest::blocking::ClientBuilder::new()
             .cookie_store(true)
             .build()
