@@ -28,5 +28,14 @@ fn main() {
     println!("is logged: {is_logged_in}");
     let user_id = api.me_rest_id().unwrap();
     println!("userid is {user_id}");
-    let following = api.get_friends(user_id, true);
+    let mut cursor = "".to_string();
+    loop {
+        let pagination = api.get_friends(user_id, true, Some(cursor.into())).unwrap();
+        cursor = pagination.cursor.clone();
+        debug!("Found {:?} following", pagination.entries.len());
+        if !pagination.has_more {
+            break;
+        }
+    }
+    
 }

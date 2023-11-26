@@ -1,7 +1,7 @@
 use crate::BEARER_TOKEN;
-use log::debug;
+use log::{debug, trace};
+use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
-use std::cmp;
 
 use super::{
     types::{parse_legacy_tweet, Data, Tweet},
@@ -18,6 +18,59 @@ const FOLLOWERS_URL: &str =
     "https://twitter.com/i/api/graphql/WWFQL1d4gxtqm2mjZCRa-Q/Followers";
 
     
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PaginationResponse {
+    pub cursor: String,
+    pub entries: Vec<Value>,
+    pub has_more: bool
+}
+
+fn findkey(name: &str, value: Value) -> Option<Value> {
+    match value {
+        Value::Object(map) => {
+            // Check if the key exists in the map
+            if let Some(val) = map.get(name) {
+                return Some(val.clone());
+            }
+
+            // Recursively search in nested objects
+            for (_, v) in map {
+                if let Some(result) = findkey(name, v) {
+                    return Some(result);
+                }
+            }
+        }
+        Value::Array(vec) => {
+            // Recursively search in array elements
+            for v in vec {
+                if let Some(result) = findkey(name, v) {
+                    return Some(result);
+                }
+            }
+        }
+        _ => {}
+    }
+
+    None
+}
+
+fn find_object(data: Vec<Value>, key_start_with: &str, value_start_with: &str) -> Option<Value> {
+    // Find object by inner key and value
+    for value in data {
+        if let Some(obj) = value.as_object() {
+            for (key, val) in obj {
+                if key.starts_with(key_start_with) && val.is_string() {
+                    let string_val = val.as_str().unwrap();
+                    if string_val.starts_with(value_start_with) {
+                        return Some(value.clone());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
 
 impl TwAPI {
     pub fn user_id(&mut self, username: String) -> Result<String, Box<dyn std::error::Error>> {
@@ -66,11 +119,12 @@ impl TwAPI {
         }
     }
 
-    pub fn get_friends(&mut self, user_id: i64, following: bool) -> Result<Value, Box<dyn std::error::Error>> {
+    pub fn get_friends(&mut self, user_id: i64, following: bool, start_cursor: Option<String>) -> Result<PaginationResponse, Box<dyn std::error::Error>> {
         let variables = json!(
-            {"userId": user_id, "count": 100,
-                 "includePromotedContent": false}
+            {"userId": user_id, "count": 2,
+                 "includePromotedContent": true, "cursor": start_cursor, "product": "latest"}
         );
+        debug!("variables: {variables}");
 
 
 
@@ -101,7 +155,21 @@ impl TwAPI {
             .unwrap();
         let text = self.client.execute(req).unwrap().text().unwrap();
         let res: Value = serde_json::from_str(&text).unwrap();
-        debug!("following res {res}");
-        return Ok(res);
+        let instructions = &res["data"]["user"]["result"]["timeline"]["timeline"]["instructions"];
+        trace!("instructions: {instructions}");
+
+        let entries = findkey("entries", instructions.to_owned()).unwrap_or_default();
+        let entries = entries
+            .as_array()
+            .ok_or_else(|| "entries is not an array or not present".to_string())?;
+
+        let bottom_cursor = find_object(entries.to_owned(), "entryId", "cursor-bottom").unwrap_or_default();
+        let bottom_cursor = bottom_cursor["content"]["value"].as_str().unwrap_or_default();
+
+        trace!("following res {:?}", res);
+        trace!("bottom_cursor {bottom_cursor}");
+        let data_entries: Vec<Value> = entries.iter().filter(|e| e["entryType"].as_str().unwrap_or_default() == "TimelineTimelineItem").cloned().collect();
+        // Assuming you want to return a clone of the data
+        return Ok(PaginationResponse{cursor: bottom_cursor.into(), entries: data_entries.to_owned(), has_more: data_entries.len() > 0 && bottom_cursor.is_empty() == false});
     }
 }
