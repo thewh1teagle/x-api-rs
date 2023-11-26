@@ -166,10 +166,13 @@ impl TwAPI {
         let bottom_cursor = find_object(entries.to_owned(), "entryId", "cursor-bottom").unwrap_or_default();
         let bottom_cursor = bottom_cursor["content"]["value"].as_str().unwrap_or_default();
 
-        trace!("following res {:?}", res);
         trace!("bottom_cursor {bottom_cursor}");
-        let data_entries: Vec<Value> = entries.iter().filter(|e| e["entryType"].as_str().unwrap_or_default() == "TimelineTimelineItem").cloned().collect();
+        let data_entries: Vec<Value> = entries.iter().filter(|entry| {
+            let entry_id = entry["entryId"].as_str().unwrap_or_default();
+            debug!("entry id: {entry_id}");
+            return entry_id.starts_with("user-");
+        }).cloned().collect();
         // Assuming you want to return a clone of the data
-        return Ok(PaginationResponse{cursor: bottom_cursor.into(), entries: data_entries.to_owned(), has_more: data_entries.len() > 0 && bottom_cursor.is_empty() == false});
+        return Ok(PaginationResponse{cursor: bottom_cursor.into(), entries: data_entries.to_owned(), has_more: data_entries.len() > 0 && !bottom_cursor.is_empty()});
     }
 }
