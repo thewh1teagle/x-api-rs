@@ -99,7 +99,7 @@ impl TwAPI {
                 .build()
                 .unwrap();
             let text = self.client.execute(req).unwrap().text().unwrap();
-            let res: Value = serde_json::from_str(&text).unwrap();
+            let res: Value = serde_json::from_str(&text)?;
             debug!("me res {res}");
             let rest_id = res
                 .get("data")
@@ -154,7 +154,7 @@ impl TwAPI {
             .build()
             .unwrap();
         let text = self.client.execute(req).unwrap().text().unwrap();
-        let res: Value = serde_json::from_str(&text).unwrap();
+        let res: Value = serde_json::from_str(&text)?;
         let instructions = &res["data"]["user"]["result"]["timeline"]["timeline"]["instructions"];
         trace!("instructions: {instructions}");
 
