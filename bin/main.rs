@@ -5,13 +5,13 @@ use serde_json::json;
 use twitter_rs_api::{self, auth::SuspiciousLoginError};
 use dotenv::dotenv;
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok(); 
     let username = std::env::var("USER").unwrap();
     let password = std::env::var("PASSWORD").unwrap();
     debug!("username: {username}");
     debug!("password: {password}");
-    let mut api = twitter_rs_api::TwAPI::new();
+    let mut api = twitter_rs_api::TwAPI::new()?;
     let result = api.login(&username, &password, "", None);
     match result {
         Err(err) => {
@@ -24,7 +24,7 @@ fn main() {
         Ok(_) => {}
     }
     
-    let is_logged_in = api.is_logged_in();
+    let is_logged_in = api.is_logged_in()?;
     println!("is logged: {is_logged_in}");
     let user_id = api.me_rest_id().unwrap();
     println!("userid is {user_id}");
@@ -37,5 +37,6 @@ fn main() {
             break;
         }
     }
+    Ok(())
     
 }
