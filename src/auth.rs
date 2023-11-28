@@ -211,8 +211,8 @@ impl TwAPI {
             }
         );
 
-        let mut flow = self.get_flow_token(data).unwrap().unwrap();
-        let token = flow.flow_token.to_owned();
+        let flow = self.get_flow_token(data)?.ok_or("flow is none")?;
+        // let token = flow.flow_token.to_owned();
         let subtask_id = flow.subtasks[0].subtask_id.clone();
 
         // asking for username because of suspicies log in
