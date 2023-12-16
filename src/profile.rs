@@ -1,17 +1,13 @@
 use crate::BEARER_TOKEN;
+use anyhow::{Context, Result};
 use log::debug;
 use serde_json::{json, Value};
-use std::cmp;
-
-use super::{
-    types::{parse_legacy_tweet, Data, Tweet},
-    TwAPI,
-};
+use super::TwAPI;
 
 const SEARCH_URL: &str = "https://twitter.com/i/api/graphql/k3027HdkVqbuDPpdoniLKA/Viewer";
 
 impl TwAPI {
-    pub fn me(&self) -> std::result::Result<Value, reqwest::Error> {
+    pub fn me(&self) -> Result<Value> {
 
         let variables = json!(
             {"withCommunitiesMemberships": true,
@@ -33,9 +29,9 @@ impl TwAPI {
             .header("X-CSRF-Token", self.csrf_token.to_owned())
             .query(&q)
             .build()
-            .unwrap();
-        let text = self.client.execute(req).unwrap().text().unwrap();
-        let res: Value = serde_json::from_str(&text).unwrap();
+            ?;
+        let text = self.client.execute(req)?.text()?;
+        let res: Value = serde_json::from_str(&text).context("can't convert response to json")?;
         debug!("me res {res}");
         return Ok(res);
     }

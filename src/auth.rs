@@ -1,6 +1,5 @@
 use super::{TwAPI, BEARER_TOKEN, GUEST_ACTIVE_URL, LOGIN_URL, VERIFY_CREDENTIALS_URL};
 use log::debug;
-
 use env_logger;
 use serde::Deserialize;
 use serde_json::{self, json};
@@ -152,13 +151,7 @@ impl TwAPI {
         Ok(())
     }
 
-    pub fn read_string(&self) -> String {
-        let mut input = String::new();
-        std::io::stdin()
-            .read_line(&mut input)
-            .expect("can not read user input");
-        input
-    }
+
 
     pub fn before_password_steps(&mut self, username: String) -> Result<Flow> {
         let data = json!(

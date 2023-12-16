@@ -2,7 +2,7 @@ use crate::BEARER_TOKEN;
 use log::debug;
 use serde_json::json;
 use std::cmp;
-
+use anyhow::{Result, Context};
 use super::{
     types::{parse_legacy_tweet, Data, Tweet},
     TwAPI,
@@ -16,7 +16,7 @@ impl TwAPI {
         query: &str,
         limit: u8,
         cursor: &str,
-    ) -> std::result::Result<Data, reqwest::Error> {
+    ) -> Result<Data> {
         let limit = cmp::min(50u8, limit);
 
         let mut variables = json!(
@@ -71,17 +71,12 @@ impl TwAPI {
             .header("Authorization", format!("Bearer {}", BEARER_TOKEN))
             .header("X-CSRF-Token", self.csrf_token.to_owned())
             .query(&q)
-            .build()
-            .unwrap();
+            .build()?;
         let text = self
             .client
-            .execute(req)
-            
-            .unwrap()
-            .text()
-            
-            .unwrap();
-        let res: Data = serde_json::from_str(&text).unwrap();
+            .execute(req)?
+            .text()?;
+        let res: Data = serde_json::from_str(&text)?;
         return Ok(res);
     }
 
@@ -90,7 +85,7 @@ impl TwAPI {
         query: &str,
         limit: u8,
         cursor: &str,
-    ) -> Result<(Vec<Tweet>, String), reqwest::Error> {
+    ) -> Result<(Vec<Tweet>, String)> {
         let search_result = self.search(query, limit, cursor);
         let mut cursor = String::from("");
         match search_result {
@@ -102,7 +97,7 @@ impl TwAPI {
                     .search_timeline
                     .timeline
                     .instructions
-                    .unwrap();
+                    .context("can't parse tweets from timeline, instructions is none")?;
                 for item in instructions {
                     if item.instruction_type.ne("TimelineAddEntries")
                         && item.instruction_type.ne("TimelineReplaceEntry")
@@ -110,11 +105,11 @@ impl TwAPI {
                         continue;
                     }
                     if item.entry.is_some() {
-                        let entry = item.entry.unwrap();
+                        let entry = item.entry.context("entry is none")?;
                         let cursor_type = entry.content.cursor_type.unwrap_or("".to_string());
                         if cursor_type.eq("Bottom") {
                             if entry.content.value.is_some() {
-                                cursor = entry.content.value.unwrap();
+                                cursor = entry.content.value.context("content value is none")?;
                             }
                         }
                     }
@@ -122,15 +117,15 @@ impl TwAPI {
                         if entry.content.item_content.is_none() {
                             continue;
                         }
-                        let item = entry.content.item_content.unwrap();
+                        let item = entry.content.item_content.context("item content is none")?;
                         if item.tweet_display_type.eq("Tweet") {
                             let core = item.tweet_results.result.core;
                             if core.is_none() {
                                 continue;
                             }
-                            let u = core.unwrap().user_results.result.legacy.unwrap();
+                            let u = core.context("core is none")?.user_results.result.legacy.context("legacy is none")?;
                             let t = item.tweet_results.result.legacy;
-                            if let Some(tweet) = parse_legacy_tweet(&u, &t) {
+                            if let Ok(tweet) = parse_legacy_tweet(&u, &t) {
                                 tweets.push(tweet)
                             }
                         }

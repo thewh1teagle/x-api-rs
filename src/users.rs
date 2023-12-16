@@ -2,11 +2,7 @@ use crate::BEARER_TOKEN;
 use log::{debug, trace};
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
-
-use super::{
-    types::{parse_legacy_tweet, Data, Tweet},
-    TwAPI,
-};
+use super::TwAPI;
 
 const SEARCH_URL: &str =
     "https://twitter.com/i/api/graphql/9zwVLJ48lmVUk8u_Gh9DmA/ProfileSpotlightsQuery";
@@ -61,7 +57,7 @@ fn find_object(data: Vec<Value>, key_start_with: &str, value_start_with: &str) -
         if let Some(obj) = value.as_object() {
             for (key, val) in obj {
                 if key.starts_with(key_start_with) && val.is_string() {
-                    let string_val = val.as_str().unwrap();
+                    let string_val = val.as_str()?;
                     if string_val.starts_with(value_start_with) {
                         return Some(value.clone());
                     }
@@ -96,9 +92,8 @@ impl TwAPI {
                 .header("Authorization", format!("Bearer {}", BEARER_TOKEN))
                 .header("X-CSRF-Token", self.csrf_token.to_owned())
                 .query(&q)
-                .build()
-                .unwrap();
-            let text = self.client.execute(req).unwrap().text().unwrap();
+                .build()?;
+            let text = self.client.execute(req)?.text()?;
             let res: Value = serde_json::from_str(&text)?;
             debug!("me res {res}");
             let rest_id = res
@@ -151,9 +146,8 @@ impl TwAPI {
             .header("Authorization", format!("Bearer {}", BEARER_TOKEN))
             .header("X-CSRF-Token", self.csrf_token.to_owned())
             .query(&q)
-            .build()
-            .unwrap();
-        let text = self.client.execute(req).unwrap().text().unwrap();
+            .build()?;
+        let text = self.client.execute(req)?.text()?;
         let res: Value = serde_json::from_str(&text)?;
         let instructions = &res["data"]["user"]["result"]["timeline"]["timeline"]["instructions"];
         trace!("instructions: {instructions}");

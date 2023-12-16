@@ -1,5 +1,6 @@
 use chrono::{DateTime, FixedOffset};
 use serde::Deserialize;
+use anyhow::{Result, bail, Context};
 
 #[derive(Debug, Deserialize)]
 pub struct ExpandedURL {
@@ -75,11 +76,11 @@ pub struct NoteTweet {
 
 #[derive(Debug, Deserialize)]
 pub struct QuotedStatusResult {
-    pub result: Box<Result>,
+    pub result: Box<TweetResult>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct Result {
+pub struct TweetResult {
     pub __typename: String,
     pub core: Option<ResultCore>,
     pub views: Views,
@@ -90,7 +91,7 @@ pub struct Result {
 
 #[derive(Debug, Deserialize)]
 pub struct TweetRresults {
-    pub result: Result,
+    pub result: TweetResult,
 }
 
 #[derive(Debug, Deserialize)]
@@ -316,7 +317,7 @@ pub struct ExtendedEntities {
 
 #[derive(Debug, Deserialize)]
 pub struct RetweetedStatusResult {
-    pub result: Option<Box<Result>>,
+    pub result: Option<Box<TweetResult>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -352,10 +353,10 @@ pub struct LegacyTweet {
     pub ext_views: Option<ExtViews>,
 }
 
-pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Option<Tweet> {
+pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Result<Tweet> {
     let tweet_id = &t.id_str;
     if tweet_id.eq("") {
-        return Option::None;
+        bail!("Tweet id is empty")
     }
     let id = t.id_str.to_owned();
     let name = u.name.to_owned();
@@ -385,7 +386,7 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Option<Tweet> {
             .unwrap_or(&"".to_string())
             .ne(""))
         || (t.retweeted_status_result.is_some()
-            && t.retweeted_status_result.as_ref().unwrap().result.is_some());
+            && t.retweeted_status_result.as_ref().context("retweet status result is none")?.result.is_some());
     let retweeted_status_id = t
         .retweeted_status_id_str
         .as_ref()
@@ -394,7 +395,7 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Option<Tweet> {
     let mut views = 0i128;
 
     if t.ext_views.is_some() {
-        views = t.ext_views.as_ref().unwrap().count.parse::<i128>().unwrap();
+        views = t.ext_views.as_ref().context("ext_views is none")?.count.parse::<i128>()?;
     }
 
     let hash_tags: Vec<String> = t
@@ -427,12 +428,12 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Option<Tweet> {
                 let mut url = "";
                 let mut max_bitrate = 0;
                 if i.video_info.is_some() {
-                    let video_info = i.video_info.as_ref().unwrap();
+                    let video_info = i.video_info.as_ref().context("video_info is none")?;
                     for variant in &video_info.variants {
                         let bitrate = variant.bitrate.unwrap_or(0);
                         if bitrate > max_bitrate {
                             max_bitrate = bitrate;
-                            url = variant.url.strip_suffix("?tag=10").unwrap();
+                            url = variant.url.strip_suffix("?tag=10").context("cant strip video suffix")?;
                         }
                     }
                 }
@@ -453,7 +454,7 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Option<Tweet> {
             _ => {}
         }
         if !sensitive_content && i.ext_sensitive_media_warning.is_some() {
-            let warning = i.ext_sensitive_media_warning.as_ref().unwrap();
+            let warning = i.ext_sensitive_media_warning.as_ref().context("sensitive content but warning is none")?;
             sensitive_content = warning.adult_content || warning.graphic_violence || warning.other;
         }
     }
@@ -464,7 +465,7 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Option<Tweet> {
 
     let mut time_parsed = chrono::offset::Utc::now().fixed_offset();
     if t.time.is_some() {
-        time_parsed = DateTime::parse_from_rfc2822(&t.time.as_ref().unwrap()).unwrap();
+        time_parsed = DateTime::parse_from_rfc2822(&t.time.as_ref().context("time is none")?)?;
     }
     let timestamp = time_parsed.timestamp();
     let html = t.full_text.to_owned();
@@ -474,22 +475,22 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Option<Tweet> {
         let core = &t
             .retweeted_status_result
             .as_ref()
-            .unwrap()
+            .context("retweet status is none")?
             .result
             .as_ref()
-            .unwrap()
+            .context("retweet status result is none")?
             .core;
         if let Some(core) = core {
-            let legacy_u = core.user_results.result.legacy.as_ref().unwrap();
+            let legacy_u = core.user_results.result.legacy.as_ref().context("legacy is none")?;
             let legacy_t = &t
                 .retweeted_status_result
                 .as_ref()
-                .unwrap()
+                .context("retweeted status result is none")?
                 .result
                 .as_ref()
-                .unwrap()
+                .context("retweeted status result is none")?
                 .legacy;
-            retweeted_status = Some(Box::new(parse_legacy_tweet(&legacy_u, &legacy_t).unwrap()));
+            retweeted_status = Some(Box::new(parse_legacy_tweet(&legacy_u, &legacy_t)?));
         }
     }
     let tweet = Tweet {
@@ -528,5 +529,5 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Option<Tweet> {
         sensitive_content,
         html,
     };
-    Some(tweet)
+    Ok(tweet)
 }
