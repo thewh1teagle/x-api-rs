@@ -1,6 +1,8 @@
 pub mod auth;
 pub mod search;
 pub mod types;
+use std::sync::Arc;
+
 use reqwest::blocking::Client;
 mod profile;
 mod users;
@@ -19,4 +21,6 @@ pub struct TwAPI {
     client: Client,
     guest_token: String,
     csrf_token: String,
+    cookie_store: Arc<reqwest_cookie_store::CookieStoreMutex>
 }
+

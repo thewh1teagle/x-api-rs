@@ -1,10 +1,12 @@
+use std::{path::PathBuf, sync::Arc};
+
 use super::{TwAPI, BEARER_TOKEN, GUEST_ACTIVE_URL, LOGIN_URL, VERIFY_CREDENTIALS_URL};
 use log::debug;
 use env_logger;
 use serde::Deserialize;
 use serde_json::{self, json};
 use anyhow::{Result, bail, Context};
-
+use reqwest_cookie_store;
 
 #[derive(Clone, Debug, thiserror::Error)]
 #[error("Suspicious Login")]
@@ -72,18 +74,38 @@ pub struct VerifyCredentials {
 }
 
 impl TwAPI {
-    pub fn new() -> Result<TwAPI> {
+    pub fn new(session_path: Option<&PathBuf>) -> Result<TwAPI> {
         let _ = env_logger::try_init();
-        let client = reqwest::blocking::ClientBuilder::new()
-            .cookie_store(true)
+        let client_builder = reqwest::blocking::ClientBuilder::new();
+        let cookie_store: Arc<reqwest_cookie_store::CookieStoreMutex>;
+    
+        if let Some(session_path) = session_path.as_ref().filter(|path| path.exists()) {
+            let file = std::fs::File::open(session_path.to_str().unwrap())
+                .map(std::io::BufReader::new)
+                .unwrap();
+            debug!("Load json session from {session_path:?}");
+            let provider: reqwest_cookie_store::CookieStore = reqwest_cookie_store::CookieStore::load_json(file).unwrap();
+            
+            cookie_store = std::sync::Arc::new(reqwest_cookie_store::CookieStoreMutex::new(provider));
+        } else {
+            let provider: reqwest_cookie_store::CookieStore = reqwest_cookie_store::CookieStore::new(None);
+            
+            cookie_store = std::sync::Arc::new(reqwest_cookie_store::CookieStoreMutex::new(provider));
+        }
+    
+        let client = client_builder
+            .cookie_provider(std::sync::Arc::clone(&cookie_store))
             .build()
-            .context("cant build cookie store")?;
-        return Ok(TwAPI {
+            .context("can't build cookie store")?;
+    
+        Ok(TwAPI {
             client,
             csrf_token: String::from(""),
             guest_token: String::from(""),
-        });
+            cookie_store,
+        })
     }
+    
     fn get_flow(&mut self, body: serde_json::Value) -> Result<Flow> {
         if self.guest_token.is_empty() {
             self.get_guest_token()?
@@ -324,5 +346,13 @@ impl TwAPI {
         let text = res.text().context("res is not text")?;
         let res: VerifyCredentials = serde_json::from_str(&text).context("res is not diseralizable")?;
         Ok(res.errors.is_none())
+    }
+
+    pub fn save_session(&mut self, path: PathBuf) {
+        let mut writer = std::fs::File::create(path)
+            .map(std::io::BufWriter::new)
+            .unwrap();
+        let store = self.cookie_store.lock().unwrap();
+        store.save_json(&mut writer).unwrap();
     }
 }
