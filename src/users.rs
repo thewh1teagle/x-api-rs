@@ -69,7 +69,7 @@ fn find_object(data: Vec<Value>, key_start_with: &str, value_start_with: &str) -
 }
 
 impl TwAPI {
-    pub fn user_id(&mut self, username: String) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn user_id(&mut self, username: String) -> Result<String, Box<dyn std::error::Error>> {
         let username = username.replace("@", "");
         if username.as_bytes()[0].is_ascii_digit() {
             return Ok(username);
@@ -93,7 +93,7 @@ impl TwAPI {
                 .header("X-CSRF-Token", self.csrf_token.to_owned())
                 .query(&q)
                 .build()?;
-            let text = self.client.execute(req)?.text()?;
+            let text = self.client.execute(req).await?.text().await?;
             let res: Value = serde_json::from_str(&text)?;
             debug!("me res {res}");
             let rest_id = res
@@ -114,7 +114,7 @@ impl TwAPI {
         }
     }
 
-    pub fn get_friends(&mut self, user_id: i64, following: bool, start_cursor: Option<String>) -> Result<PaginationResponse, Box<dyn std::error::Error>> {
+    pub async fn get_friends(&mut self, user_id: i64, following: bool, start_cursor: Option<String>) -> Result<PaginationResponse, Box<dyn std::error::Error>> {
         let variables = json!(
             {"userId": user_id, "count": 2,
                  "includePromotedContent": true, "cursor": start_cursor, "product": "latest"}
@@ -147,7 +147,7 @@ impl TwAPI {
             .header("X-CSRF-Token", self.csrf_token.to_owned())
             .query(&q)
             .build()?;
-        let text = self.client.execute(req)?.text()?;
+        let text = self.client.execute(req).await?.text().await?;
         let res: Value = serde_json::from_str(&text)?;
         let instructions = &res["data"]["user"]["result"]["timeline"]["timeline"]["instructions"];
         trace!("instructions: {instructions}");

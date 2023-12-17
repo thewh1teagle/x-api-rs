@@ -1,7 +1,7 @@
 pub mod auth;
 pub mod search;
 pub mod types;
-use reqwest::blocking::Client;
+use reqwest::Client;
 mod profile;
 mod users;
 

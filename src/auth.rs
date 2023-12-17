@@ -74,7 +74,7 @@ pub struct VerifyCredentials {
 impl TwAPI {
     pub fn new() -> Result<TwAPI> {
         let _ = env_logger::try_init();
-        let client = reqwest::blocking::ClientBuilder::new()
+        let client = reqwest::ClientBuilder::new()
             .cookie_store(true)
             .build()
             .context("cant build cookie store")?;
@@ -84,9 +84,10 @@ impl TwAPI {
             guest_token: String::from(""),
         });
     }
-    fn get_flow(&mut self, body: serde_json::Value) -> Result<Flow> {
+    async fn get_flow(&mut self, body: serde_json::Value) -> Result<Flow> {
         if self.guest_token.is_empty() {
-            self.get_guest_token()?
+            self.get_guest_token()
+            .await?
         }
         let res = self
             .client
@@ -99,7 +100,8 @@ impl TwAPI {
             .header("X-Twitter-Active-User", "yes")
             .header("X-Twitter-Client-Language", "en")
             .json(&body)
-            .send()?;
+            .send()
+            .await?;
 
         let cookies = res.cookies();
         for cookie in cookies {
@@ -107,17 +109,17 @@ impl TwAPI {
                 self.csrf_token = cookie.value().to_string()
             }
         }
-        let text = res.text()?;
+        let text = res.text().await?;
         debug!("text: {text}");
         let result: Flow = serde_json::from_str(text.as_str())?;
         return Ok(result);
     }
 
-    pub fn get_flow_token(
+    pub async fn get_flow_token(
         &mut self,
         data: serde_json::Value,
     ) -> Result<Option<Flow>> {
-        let res = self.get_flow(data);
+        let res = self.get_flow(data).await;
         match res {
             Ok(info) => {
                 if info.subtasks.len() > 0 {
@@ -138,14 +140,15 @@ impl TwAPI {
         }
     }
 
-    fn get_guest_token(&mut self) -> Result<()> {
+    async fn get_guest_token(&mut self) -> Result<()> {
         let token = format!("Bearer {}", BEARER_TOKEN);
         let res = self
             .client
             .post(GUEST_ACTIVE_URL)
             .header("Authorization", token)
-            .send()?;
-        let op = res.json::<serde_json::Value>()?;
+            .send()
+            .await?;
+        let op = res.json::<serde_json::Value>().await?;
         let guest_token = op.get("guest_token").context("cant get guest_token")?;
         self.guest_token = guest_token.to_string();
         Ok(())
@@ -153,7 +156,7 @@ impl TwAPI {
 
 
 
-    pub fn before_password_steps(&mut self, username: String) -> Result<Flow> {
+    pub async fn before_password_steps(&mut self, username: String) -> Result<Flow> {
         let data = json!(
             {
                 "flow_name": "login",
@@ -167,7 +170,7 @@ impl TwAPI {
                 }
             }
         );
-        let flow_token = self.get_flow_token(data)?.context("cant get folow token")?.flow_token;
+        let flow_token = self.get_flow_token(data).await?.context("cant get folow token")?.flow_token;
 
         // flow instrumentation step
         let data = json!(
@@ -182,7 +185,7 @@ impl TwAPI {
                 }],
             }
         );
-        let flow_token = self.get_flow_token(data)?.context("cant get folow token")?.flow_token;
+        let flow_token = self.get_flow_token(data).await?.context("cant get folow token")?.flow_token;
 
         // flow username step
         let data = json!(
@@ -205,7 +208,7 @@ impl TwAPI {
             }
         );
 
-        let flow = self.get_flow_token(data)?.context("flow is none")?;
+        let flow = self.get_flow_token(data).await?.context("flow is none")?;
         // let token = flow.flow_token.to_owned();
         let subtask_id = flow.subtasks[0].subtask_id.clone();
 
@@ -216,7 +219,7 @@ impl TwAPI {
         Ok(flow)
     }
 
-    pub fn login(
+    pub async fn login(
         &mut self,
         username: &str,
         password: &str,
@@ -235,9 +238,9 @@ impl TwAPI {
                 "subtask_inputs": [{"subtask_id": subtask_id, "enter_text": {"text": username,"link":"next_link"}}]
             });
             // self.handle_suspicies(token.clone(), subtask_id.clone());
-            flow = self.get_flow_token(data).context("flow token is none")?.context("inner flow token is none")?;
+            flow = self.get_flow_token(data).await.context("flow token is none")?.context("inner flow token is none")?;
         } else {
-            flow = self.before_password_steps(username.into())?;
+            flow = self.before_password_steps(username.into()).await?;
         }
         // flow password step
         let data = json!(
@@ -253,7 +256,7 @@ impl TwAPI {
             }
         );
 
-        let flow_token = self.get_flow_token(data)?.context("flow token is none in password step")?.flow_token;
+        let flow_token = self.get_flow_token(data).await?.context("flow token is none in password step")?.flow_token;
 
         // flow duplication check
         let data = json!(
@@ -267,7 +270,7 @@ impl TwAPI {
                 }]
             }
         );
-        let flow_token = self.get_flow_token(data);
+        let flow_token = self.get_flow_token(data).await;
 
         match flow_token {
             Err(e) => {
@@ -298,7 +301,7 @@ impl TwAPI {
                             },
                         }
                     );
-                    return self.get_flow_token(data);
+                    return self.get_flow_token(data).await;
                 }
                 Ok(None)
             }
@@ -306,7 +309,7 @@ impl TwAPI {
         }
     }
 
-    pub fn is_logged_in(&mut self) -> Result<bool> {
+    pub async fn is_logged_in(&mut self) -> Result<bool> {
         let req = self
             .client
             .get(VERIFY_CREDENTIALS_URL)
@@ -314,14 +317,14 @@ impl TwAPI {
             .header("X-CSRF-Token", self.csrf_token.to_owned())
             .build()
             .context("Cant build http request in logged in")?;
-        let res = self.client.execute(req).context("failed execute request")?;
+        let res = self.client.execute(req).await.context("failed execute request")?;
         let cookies = res.cookies();
         for cookie in cookies {
             if cookie.name().eq("ct0") {
                 self.csrf_token = cookie.value().to_string()
             }
         }
-        let text = res.text().context("res is not text")?;
+        let text = res.text().await.context("res is not text")?;
         let res: VerifyCredentials = serde_json::from_str(&text).context("res is not diseralizable")?;
         Ok(res.errors.is_none())
     }
