@@ -20,3 +20,5 @@ see [examples](examples) folder
 [TweeterPy](https://github.com/iSarabjitDhiman/TweeterPy)
 
 [ReverseEngineeredTwitterAPI](https://github.com/Amovane/ReverseEngineeredTwitterAPI)
+
+[twitter-api-client](https://github.com/trevorhobenshield/twitter-api-client)
