@@ -3,6 +3,7 @@ use log::{debug, trace};
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 use super::TwAPI;
+use anyhow::{Result, Context, bail};
 
 const SEARCH_URL: &str =
     "https://twitter.com/i/api/graphql/9zwVLJ48lmVUk8u_Gh9DmA/ProfileSpotlightsQuery";
@@ -169,4 +170,62 @@ impl TwAPI {
         // Assuming you want to return a clone of the data
         return Ok(PaginationResponse{cursor: bottom_cursor.into(), entries: data_entries.to_owned(), has_more: data_entries.len() > 0 && !bottom_cursor.is_empty()});
     }
+
+    pub fn get_followers_ids(&mut self, user_id: String, cursor: i32) -> Result<PaginationResponse> {
+
+        let q = [
+            ("user_id", &user_id),
+            ("cursor", &cursor.to_string()),
+            ("count", &"5000".to_string()) // max...
+        ];
+        let req = self.client
+            .get("https://api.twitter.com/1.1/followers/ids.json")
+            .header("Authorization", format!("Bearer {}", BEARER_TOKEN))
+            .header("X-CSRF-Token", self.csrf_token.to_owned())
+            .query(&q)
+            .build()?;
+        let text = self.client.execute(req)?.text()?;
+        let res: Value = serde_json::from_str(&text)?;
+        let cursor = res["next_cursor_str"].as_str().unwrap_or("0");
+        Ok(PaginationResponse {cursor: cursor.into(), entries: res["ids"].as_array().unwrap_or(&Vec::new()).to_vec(), has_more: cursor != "0"})
+    }
+
+    pub fn get_following_ids(&mut self, user_id: String, cursor: i32) -> Result<PaginationResponse> {
+
+        let q = [
+            ("user_id", &user_id),
+            ("cursor", &cursor.to_string()),
+            ("count", &"5000".to_string()) // max...
+        ];
+        let req = self.client
+            .get("https://api.twitter.com/1.1/friends/ids.json")
+            .header("Authorization", format!("Bearer {}", BEARER_TOKEN))
+            .header("X-CSRF-Token", self.csrf_token.to_owned())
+            .query(&q)
+            .build()?;
+        let text = self.client.execute(req)?.text()?;
+        let res: Value = serde_json::from_str(&text)?;
+        let cursor = res["next_cursor_str"].as_str().unwrap_or("0");
+        Ok(PaginationResponse {cursor: cursor.into(), entries: res["ids"].as_array().unwrap_or(&Vec::new()).to_vec(), has_more: cursor != "0"})
+    }
+
+    pub fn users_lookup(&mut self, ids: Vec<String>) -> Result<Vec<Value>> {
+        debug!("checking on ids {ids:?}");
+        if ids.len() > 100 {
+            bail!("ids should be no more than 100")
+        }
+        let q = [
+            ("user_id", &ids.join(",")),
+        ];
+        let req = self.client
+            .get("https://api.twitter.com/1.1/users/lookup.json")
+            .header("Authorization", format!("Bearer {}", BEARER_TOKEN))
+            .header("X-CSRF-Token", self.csrf_token.to_owned())
+            .query(&q)
+            .build()?;
+        let text = self.client.execute(req)?.text()?;
+        let res: Value = serde_json::from_str(&text)?;
+        Ok(res.as_array().unwrap_or(&Vec::new()).to_vec())
+    }
+
 }

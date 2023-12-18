@@ -40,16 +40,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("is logged: {is_logged_in}");
     
     let user_id = api.me_rest_id()?;
-    println!("userid is {user_id}");
-    let mut cursor = "".to_string();
-    loop {
-        let pagination = api.get_friends(user_id, true, Some(cursor.into()))?;
-        cursor = pagination.cursor.clone();
-        debug!("Found {:?} following", pagination.entries.len());
-        if !pagination.has_more {
-            break;
-        }
-    }
+    let res = api.get_following_ids(user_id.to_string(), -1)?;
+    debug!("res is {res:?}");
+    let ids = res.entries.iter().map(|v| v.as_i64().unwrap_or_default().to_string()).collect();
+    let res = api.users_lookup(ids)?;
+    debug!("res is {res:?}");
+    // loop {
+    //     let pagination = api.get_friends(user_id, true, Some(cursor.into()))?;
+    //     cursor = pagination.cursor.clone();
+    //     debug!("Found {:?} following", pagination.entries.len());
+    //     if !pagination.has_more {
+    //         break;
+    //     }
+    // }
     Ok(())
     
 }
