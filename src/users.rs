@@ -171,7 +171,7 @@ impl TwAPI {
         return Ok(PaginationResponse{cursor: bottom_cursor.into(), entries: data_entries.to_owned(), has_more: data_entries.len() > 0 && !bottom_cursor.is_empty()});
     }
 
-    pub fn get_followers_ids(&mut self, user_id: String, cursor: i32) -> Result<PaginationResponse> {
+    pub fn get_follower_ids(&mut self, user_id: String, cursor: i32) -> Result<PaginationResponse> {
 
         let q = [
             ("user_id", &user_id),
