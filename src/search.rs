@@ -11,7 +11,7 @@ use super::{
 const SEARCH_URL: &str = "https://twitter.com/i/api/graphql/nK1dw4oV3k4w5TdtcAdSww/SearchTimeline";
 
 impl TwAPI {
-    pub fn search(
+    pub async fn search(
         &self,
         query: &str,
         limit: u8,
@@ -74,19 +74,19 @@ impl TwAPI {
             .build()?;
         let text = self
             .client
-            .execute(req)?
-            .text()?;
+            .execute(req).await?
+            .text().await?;
         let res: Data = serde_json::from_str(&text)?;
         return Ok(res);
     }
 
-    pub fn search_tweets(
+    pub async fn search_tweets(
         &self,
         query: &str,
         limit: u8,
         cursor: &str,
     ) -> Result<(Vec<Tweet>, String)> {
-        let search_result = self.search(query, limit, cursor);
+        let search_result = self.search(query, limit, cursor).await;
         let mut cursor = String::from("");
         match search_result {
             Ok(res) => {

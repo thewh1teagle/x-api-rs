@@ -3,7 +3,7 @@ use log::{debug, trace};
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 use super::TwAPI;
-use anyhow::{Result, Context, bail};
+use anyhow::{Result, bail};
 
 const SEARCH_URL: &str =
     "https://twitter.com/i/api/graphql/9zwVLJ48lmVUk8u_Gh9DmA/ProfileSpotlightsQuery";
@@ -70,7 +70,7 @@ fn find_object(data: Vec<Value>, key_start_with: &str, value_start_with: &str) -
 }
 
 impl TwAPI {
-    pub fn user_id(&mut self, username: String) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn user_id(&mut self, username: String) -> Result<String, Box<dyn std::error::Error>> {
         let username = username.replace("@", "");
         if username.as_bytes()[0].is_ascii_digit() {
             return Ok(username);
@@ -94,7 +94,7 @@ impl TwAPI {
                 .header("X-CSRF-Token", self.csrf_token.to_owned())
                 .query(&q)
                 .build()?;
-            let text = self.client.execute(req)?.text()?;
+            let text = self.client.execute(req).await?.text().await?;
             let res: Value = serde_json::from_str(&text)?;
             debug!("me res {res}");
             let rest_id = res
@@ -115,7 +115,7 @@ impl TwAPI {
         }
     }
 
-    pub fn get_friends(&mut self, user_id: i64, following: bool, start_cursor: Option<String>) -> Result<PaginationResponse, Box<dyn std::error::Error>> {
+    pub async fn get_friends(&mut self, user_id: i64, following: bool, start_cursor: Option<String>) -> Result<PaginationResponse, Box<dyn std::error::Error>> {
         let variables = json!(
             {"userId": user_id, "count": 2,
                  "includePromotedContent": true, "cursor": start_cursor, "product": "latest"}
@@ -148,7 +148,7 @@ impl TwAPI {
             .header("X-CSRF-Token", self.csrf_token.to_owned())
             .query(&q)
             .build()?;
-        let text = self.client.execute(req)?.text()?;
+        let text = self.client.execute(req).await?.text().await?;
         let res: Value = serde_json::from_str(&text)?;
         let instructions = &res["data"]["user"]["result"]["timeline"]["timeline"]["instructions"];
         trace!("instructions: {instructions}");
@@ -171,7 +171,7 @@ impl TwAPI {
         return Ok(PaginationResponse{cursor: bottom_cursor.into(), entries: data_entries.to_owned(), has_more: data_entries.len() > 0 && !bottom_cursor.is_empty()});
     }
 
-    pub fn get_follower_ids(&mut self, user_id: String, cursor: i32) -> Result<PaginationResponse> {
+    pub async fn get_follower_ids(&mut self, user_id: String, cursor: i32) -> Result<PaginationResponse> {
 
         let q = [
             ("user_id", &user_id),
@@ -184,13 +184,13 @@ impl TwAPI {
             .header("X-CSRF-Token", self.csrf_token.to_owned())
             .query(&q)
             .build()?;
-        let text = self.client.execute(req)?.text()?;
+        let text = self.client.execute(req).await?.text().await?;
         let res: Value = serde_json::from_str(&text)?;
         let cursor = res["next_cursor_str"].as_str().unwrap_or("0");
         Ok(PaginationResponse {cursor: cursor.into(), entries: res["ids"].as_array().unwrap_or(&Vec::new()).to_vec(), has_more: cursor != "0"})
     }
 
-    pub fn get_following_ids(&mut self, user_id: String, cursor: i32) -> Result<PaginationResponse> {
+    pub async fn get_following_ids(&mut self, user_id: String, cursor: i32) -> Result<PaginationResponse> {
 
         let q = [
             ("user_id", &user_id),
@@ -203,13 +203,13 @@ impl TwAPI {
             .header("X-CSRF-Token", self.csrf_token.to_owned())
             .query(&q)
             .build()?;
-        let text = self.client.execute(req)?.text()?;
+        let text = self.client.execute(req).await?.text().await?;
         let res: Value = serde_json::from_str(&text)?;
         let cursor = res["next_cursor_str"].as_str().unwrap_or("0");
         Ok(PaginationResponse {cursor: cursor.into(), entries: res["ids"].as_array().unwrap_or(&Vec::new()).to_vec(), has_more: cursor != "0"})
     }
 
-    pub fn users_lookup(&mut self, ids: Vec<String>) -> Result<Vec<Value>> {
+    pub async fn users_lookup(&mut self, ids: Vec<String>) -> Result<Vec<Value>> {
         debug!("checking on ids {ids:?}");
         if ids.len() > 100 {
             bail!("ids should be no more than 100")
@@ -223,7 +223,7 @@ impl TwAPI {
             .header("X-CSRF-Token", self.csrf_token.to_owned())
             .query(&q)
             .build()?;
-        let text = self.client.execute(req)?.text()?;
+        let text = self.client.execute(req).await?.text().await?;
         let res: Value = serde_json::from_str(&text)?;
         Ok(res.as_array().unwrap_or(&Vec::new()).to_vec())
     }

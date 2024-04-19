@@ -3,7 +3,7 @@ pub mod search;
 pub mod types;
 use std::sync::Arc;
 
-use reqwest::blocking::Client;
+use reqwest::Client;
 mod profile;
 mod users;
 

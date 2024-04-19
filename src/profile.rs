@@ -7,7 +7,7 @@ use super::TwAPI;
 const SEARCH_URL: &str = "https://twitter.com/i/api/graphql/k3027HdkVqbuDPpdoniLKA/Viewer";
 
 impl TwAPI {
-    pub fn me(&self) -> Result<Value> {
+    pub async fn me(&self) -> Result<Value> {
 
         let variables = json!(
             {"withCommunitiesMemberships": true,
@@ -30,7 +30,7 @@ impl TwAPI {
             .query(&q)
             .build()
             ?;
-        let text = self.client.execute(req)?.text()?;
+        let text = self.client.execute(req).await?.text().await?;
         let res: Value = serde_json::from_str(&text).context("can't convert response to json")?;
         debug!("me res {res}");
         return Ok(res);
@@ -40,8 +40,8 @@ impl TwAPI {
 
     }
 
-    pub fn me_rest_id(&mut self) -> Result<i64, Box<dyn std::error::Error>> {
-        let me = self.me()?;
+    pub async fn me_rest_id(&mut self) -> Result<i64, Box<dyn std::error::Error>> {
+        let me = self.me().await?;
         let res_id = me
             .get("data").ok_or("data")?
             .get("viewer").ok_or("viewer")?

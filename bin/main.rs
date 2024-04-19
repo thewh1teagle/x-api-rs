@@ -12,7 +12,8 @@ fn read_string() -> String {
     input
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok(); 
 
     let cookies_path = PathBuf::from("cookies.json");
@@ -22,13 +23,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     debug!("password: {password}");
     let mut api = twitter_rs_api::TwAPI::new(Some(&cookies_path))?;
     if !cookies_path.exists() {
-        let result = api.login(&username, &password, "", None);
+        let result = api.login(&username, &password, "", None).await;
         match result {
             Err(err) => {
                 let error = err.downcast_ref::<SuspiciousLoginError>().unwrap();
                 println!("Enter your username (eg. @user): ");
                 let username = read_string();
-                api.login(&username, &password, "".into(), Some(error.1.clone()))?;
+                api.login(&username, &password, "".into(), Some(error.1.clone())).await?;
             }
             Ok(_) => {}
         }
@@ -36,14 +37,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         api.save_session(cookies_path);
     }
     // always call this for extract csrf
-    let is_logged_in = api.is_logged_in()?;
+    let is_logged_in = api.is_logged_in().await?;
     println!("is logged: {is_logged_in}");
     
-    let user_id = api.me_rest_id()?;
-    let res = api.get_following_ids(user_id.to_string(), -1)?;
+    let user_id = api.me_rest_id().await?;
+    let res = api.get_following_ids(user_id.to_string(), -1).await?;
     debug!("res is {res:?}");
     let ids = res.entries.iter().map(|v| v.as_i64().unwrap_or_default().to_string()).collect();
-    let res = api.users_lookup(ids)?;
+    let res = api.users_lookup(ids).await?;
     debug!("res is {res:?}");
     // loop {
     //     let pagination = api.get_friends(user_id, true, Some(cursor.into()))?;
