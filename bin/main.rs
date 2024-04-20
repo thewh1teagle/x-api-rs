@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok(); 
 
     let cookies_path = PathBuf::from("cookies.json");
-    let username = std::env::var("USER")?;
+    let username = std::env::var("USERNAME")?;
     let password = std::env::var("PASSWORD")?;
     debug!("username: {username}");
     debug!("password: {password}");
