@@ -74,7 +74,7 @@ pub struct VerifyCredentials {
 }
 
 impl TwAPI {
-    pub fn new(session_path: Option<&PathBuf>) -> Result<TwAPI> {
+    pub fn new(session_path: Option<PathBuf>) -> Result<TwAPI> {
         let _ = env_logger::try_init();
         let client_builder = reqwest::ClientBuilder::new();
         let cookie_store: Arc<reqwest_cookie_store::CookieStoreMutex>;
@@ -103,6 +103,7 @@ impl TwAPI {
             csrf_token: String::from(""),
             guest_token: String::from(""),
             cookie_store,
+            session_path,
         })
     }
     
@@ -348,11 +349,16 @@ impl TwAPI {
         Ok(res.errors.is_none())
     }
 
-    pub fn save_session(&mut self, path: PathBuf) {
-        let mut writer = std::fs::File::create(path)
+    pub fn save_session(&mut self) -> Result<()> {
+        if let Some(path) = &self.session_path {
+            let mut writer = std::fs::File::create(path)
             .map(std::io::BufWriter::new)
             .unwrap();
-        let store = self.cookie_store.lock().unwrap();
-        store.save_json(&mut writer).unwrap();
+            let store = self.cookie_store.lock().unwrap();
+            store.save_json(&mut writer).unwrap();
+            Ok(())
+        } else {
+            bail!("Session path must set when creating API")
+        }
     }
 }

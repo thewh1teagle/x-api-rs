@@ -1,7 +1,7 @@
 pub mod auth;
 pub mod search;
 pub mod types;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use reqwest::Client;
 mod profile;
@@ -21,6 +21,7 @@ pub struct TwAPI {
     client: Client,
     guest_token: String,
     csrf_token: String,
-    cookie_store: Arc<reqwest_cookie_store::CookieStoreMutex>
+    cookie_store: Arc<reqwest_cookie_store::CookieStoreMutex>,
+    session_path: Option<PathBuf>
 }
 
