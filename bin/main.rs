@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let password = std::env::var("PASSWORD")?;
     debug!("username: {username}");
     debug!("password: {password}");
-    let mut api = twitter_rs_api::TwAPI::new(Some(&cookies_path))?;
+    let mut api = twitter_rs_api::TwAPI::new(Some(cookies_path.clone()))?;
     if !cookies_path.exists() {
         let result = api.login(&username, &password, "", None).await;
         match result {
@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(_) => {}
         }
         
-        api.save_session(cookies_path);
+        api.save_session();
     }
     // always call this for extract csrf
     let is_logged_in = api.is_logged_in().await?;
