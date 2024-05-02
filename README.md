@@ -8,7 +8,16 @@ Twitter's `API` in Rust
 ```toml
 
 [dependencies]
-twitter_api_rs = { git = "https://github.com/thewh1teagle/twitter_api_rs.git" }
+twitter_api_rs = { git = "https://github.com/thewh1teagle/twitter_api_rs.git", branch = "main" }
+
+```
+
+Or
+
+```toml
+
+[dependencies]
+twitter_api_rs = { version = "0.1.0" }
 
 ```
 
