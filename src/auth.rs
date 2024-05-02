@@ -5,7 +5,7 @@ use log::debug;
 use env_logger;
 use serde::Deserialize;
 use serde_json::{self, json};
-use anyhow::{Result, bail, Context};
+use eyre::{bail, Context, ContextCompat, Result};
 use reqwest_cookie_store;
 
 #[derive(Clone, Debug, thiserror::Error)]

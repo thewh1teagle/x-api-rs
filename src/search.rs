@@ -2,7 +2,7 @@ use crate::BEARER_TOKEN;
 use log::debug;
 use serde_json::json;
 use std::cmp;
-use anyhow::{Result, Context};
+use eyre::{ContextCompat, Result};
 use super::{
     types::{parse_legacy_tweet, Data, Tweet},
     TwAPI,

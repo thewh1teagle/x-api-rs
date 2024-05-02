@@ -1,5 +1,5 @@
 use crate::BEARER_TOKEN;
-use anyhow::{Context, Result};
+use eyre::{Context, Result};
 use log::debug;
 use serde_json::{json, Value};
 use super::TwAPI;

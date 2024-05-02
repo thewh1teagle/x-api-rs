@@ -3,7 +3,7 @@ use log::{debug, trace};
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 use super::TwAPI;
-use anyhow::{Result, bail};
+use eyre::{Result, bail};
 
 const SEARCH_URL: &str =
     "https://twitter.com/i/api/graphql/9zwVLJ48lmVUk8u_Gh9DmA/ProfileSpotlightsQuery";

@@ -1,6 +1,6 @@
 use chrono::{DateTime, FixedOffset};
 use serde::Deserialize;
-use anyhow::{Result, bail, Context};
+use eyre::{bail, ContextCompat, Result};
 
 #[derive(Debug, Deserialize)]
 pub struct ExpandedURL {
