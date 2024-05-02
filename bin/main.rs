@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(_) => {}
         }
         
-        api.save_session();
+        api.save_session().unwrap();
     }
     // always call this for extract csrf
     let is_logged_in = api.is_logged_in().await?;
