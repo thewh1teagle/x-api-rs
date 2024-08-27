@@ -4,7 +4,7 @@ version = "0.0.4"
 edition = "2021"
 description = "X/Twitter API in Rust"
 license = "MIT"
-repository = "https://github.com/thewh1teagle/twitter-api-rs"
+repository = "https://github.com/thewh1teagle/x-api-rs"
 
 [lib]
 name = "x_api_rs"
