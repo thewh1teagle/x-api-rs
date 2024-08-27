@@ -1,8 +1,7 @@
-use std::path::PathBuf;
 
+use std::path::PathBuf;
 use log::debug;
-use twitter_api_rs::{self, auth::SuspiciousLoginError};
-use dotenv::dotenv;
+use x_api_rs::auth::SuspiciousLoginError;
 
 fn read_string() -> String {
     let mut input = String::new();
@@ -14,14 +13,13 @@ fn read_string() -> String {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv().ok(); 
 
     let cookies_path = PathBuf::from("cookies.json");
     let username = std::env::var("USERNAME")?;
     let password = std::env::var("PASSWORD")?;
     debug!("username: {username}");
     debug!("password: {password}");
-    let mut api = twitter_api_rs::TwAPI::new(Some(cookies_path.clone()))?;
+    let mut api = x_api_rs::TwAPI::new(Some(cookies_path.clone()))?;
     if !cookies_path.exists() {
         let result = api.login(&username, &password, "", None).await;
         match result {

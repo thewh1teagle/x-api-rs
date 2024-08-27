@@ -1,31 +1,20 @@
-# twitter_api_rs
+# x-api-rs
 
-Twitter's `API` in Rust
-
+X/Twitter's `API` in Rust
 
 ## Installation
 
-```toml
-
-[dependencies]
-twitter_api_rs = { git = "https://github.com/thewh1teagle/twitter_api_rs.git", branch = "main" }
-
+```console
+cargo add x-api-rs
 ```
 
-Or
-
-```toml
-
-[dependencies]
-twitter_api_rs = { version = "0.1.0" }
-
-```
 
 ## Examples
 see [examples](examples) folder
 
 
 ## Credits
+
 [TweeterPy](https://github.com/iSarabjitDhiman/TweeterPy)
 
 [ReverseEngineeredTwitterAPI](https://github.com/Amovane/ReverseEngineeredTwitterAPI)

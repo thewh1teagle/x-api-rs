@@ -1,24 +1,17 @@
 [package]
-name = "twitter_api_rs"
+name = "x-api-rs"
 version = "0.0.3"
 edition = "2021"
-description = "Twitter API in Rust"
+description = "X/Twitter API in Rust"
 license = "MIT"
-repository = "https://github.com/thewh1teagle/twitter_api_rs"
+repository = "https://github.com/thewh1teagle/twitter-api-rs"
 
 [lib]
-name = "twitter_api_rs"
+name = "x_api_rs"
 path = "src/lib.rs"
-
-[[bin]]
-name = "main"
-path = "bin/main.rs"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 chrono = "0.4.26"
-dotenv = { version = "0.15.0" }
 env_logger = "0.10.1"
 eyre = "0.6.12"
 log = "0.4.20"
