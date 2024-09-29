@@ -1,4 +1,6 @@
-
+/*
+USERNAME="" PASSWORD="" cargo run --example simple
+*/
 use std::path::PathBuf;
 use log::debug;
 use x_api_rs::auth::SuspiciousLoginError;
