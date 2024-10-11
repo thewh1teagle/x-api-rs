@@ -1,9 +1,11 @@
 /*
-USERNAME="" PASSWORD="" cargo run --example simple
+cp .env.template .env
+cargo run --example simple
 */
 use std::path::PathBuf;
-use log::debug;
 use x_api_rs::auth::SuspiciousLoginError;
+use dotenvy::dotenv;
+
 
 fn read_string() -> String {
     let mut input = String::new();
@@ -15,12 +17,13 @@ fn read_string() -> String {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-
+    tracing_subscriber::fmt::init();
+    let _ = dotenv();
     let cookies_path = PathBuf::from("cookies.json");
     let username = std::env::var("USERNAME")?;
     let password = std::env::var("PASSWORD")?;
-    debug!("username: {username}");
-    debug!("password: {password}");
+    tracing::debug!("username: {username}");
+    tracing::debug!("password: {password}");
     let mut api = x_api_rs::TwAPI::new(Some(cookies_path.clone()))?;
     if !cookies_path.exists() {
         let result = api.login(&username, &password, "", None).await;
@@ -38,18 +41,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     // always call this for extract csrf
     let is_logged_in = api.is_logged_in().await?;
-    println!("is logged: {is_logged_in}");
+    tracing::info!("is logged: {is_logged_in}");
     
     let user_id = api.me_rest_id().await?;
     let res = api.get_following_ids(user_id.to_string(), -1).await?;
-    debug!("res is {res:?}");
+    tracing::debug!("response: {res:?}");
     let ids = res.entries.iter().map(|v| v.as_i64().unwrap_or_default().to_string()).collect();
     let res = api.users_lookup(ids).await?;
-    debug!("res is {res:?}");
+    tracing::debug!("response: {res:?}");
     // loop {
     //     let pagination = api.get_friends(user_id, true, Some(cursor.into()))?;
     //     cursor = pagination.cursor.clone();
-    //     debug!("Found {:?} following", pagination.entries.len());
+    //     tracing::debug!("Found {:?} following", pagination.entries.len());
     //     if !pagination.has_more {
     //         break;
     //     }

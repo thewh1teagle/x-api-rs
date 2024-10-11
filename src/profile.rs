@@ -1,6 +1,5 @@
 use crate::BEARER_TOKEN;
 use eyre::{Context, Result};
-use log::debug;
 use serde_json::{json, Value};
 use super::TwAPI;
 
@@ -32,7 +31,7 @@ impl TwAPI {
             ?;
         let text = self.client.execute(req).await?.text().await?;
         let res: Value = serde_json::from_str(&text).context("can't convert response to json")?;
-        debug!("me res {res}");
+        tracing::debug!("me res {res}");
         return Ok(res);
     }
 

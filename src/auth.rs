@@ -1,8 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
 use super::{TwAPI, BEARER_TOKEN, GUEST_ACTIVE_URL, LOGIN_URL, VERIFY_CREDENTIALS_URL};
-use log::debug;
-use env_logger;
 use serde::Deserialize;
 use serde_json::{self, json};
 use eyre::{bail, Context, ContextCompat, Result};
@@ -75,7 +73,6 @@ pub struct VerifyCredentials {
 
 impl TwAPI {
     pub fn new(session_path: Option<PathBuf>) -> Result<TwAPI> {
-        let _ = env_logger::try_init();
         let client_builder = reqwest::ClientBuilder::new();
         let cookie_store: Arc<reqwest_cookie_store::CookieStoreMutex>;
     
@@ -83,7 +80,7 @@ impl TwAPI {
             let file = std::fs::File::open(session_path.to_str().unwrap())
                 .map(std::io::BufReader::new)
                 .unwrap();
-            debug!("Load json session from {session_path:?}");
+            tracing::debug!("Load json session from {session_path:?}");
             let provider: reqwest_cookie_store::CookieStore = reqwest_cookie_store::CookieStore::load_json(file).unwrap();
             
             cookie_store = std::sync::Arc::new(reqwest_cookie_store::CookieStoreMutex::new(provider));
@@ -131,7 +128,7 @@ impl TwAPI {
             }
         }
         let text = res.text().await?;
-        debug!("text: {text}");
+        tracing::debug!("text: {text}");
         let result: Flow = serde_json::from_str(text.as_str())?;
         return Ok(result);
     }
@@ -250,7 +247,7 @@ impl TwAPI {
 
         let mut flow: Flow;
         if latest_flow.is_some() {
-            debug!("taking latest flow");
+            tracing::debug!("taking latest flow");
             flow = latest_flow.context("latest flow is none")?;
             let subtask_id = flow.subtasks[0].subtask_id.clone();
             let data = json!({

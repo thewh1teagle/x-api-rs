@@ -1,5 +1,4 @@
 use crate::BEARER_TOKEN;
-use log::debug;
 use serde_json::json;
 use std::cmp;
 use eyre::{ContextCompat, Result};
@@ -131,7 +130,7 @@ impl TwAPI {
                         }
                     }
                 }
-                debug!("Found tweets: {tweets:?}");
+                tracing::debug!("Found tweets: {tweets:?}");
                 Ok((tweets, cursor))
             }
             Err(e) => Err(e),

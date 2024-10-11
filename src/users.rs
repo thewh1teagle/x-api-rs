@@ -1,5 +1,4 @@
 use crate::BEARER_TOKEN;
-use log::{debug, trace};
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 use super::TwAPI;
@@ -96,7 +95,7 @@ impl TwAPI {
                 .build()?;
             let text = self.client.execute(req).await?.text().await?;
             let res: Value = serde_json::from_str(&text)?;
-            debug!("me res {res}");
+            tracing::debug!("me res {res}");
             let rest_id = res
                 .get("data")
                 .ok_or("data")?
@@ -120,7 +119,7 @@ impl TwAPI {
             {"userId": user_id, "count": 2,
                  "includePromotedContent": true, "cursor": start_cursor, "product": "latest"}
         );
-        debug!("variables: {variables}");
+        tracing::debug!("variables: {variables}");
 
 
 
@@ -151,7 +150,7 @@ impl TwAPI {
         let text = self.client.execute(req).await?.text().await?;
         let res: Value = serde_json::from_str(&text)?;
         let instructions = &res["data"]["user"]["result"]["timeline"]["timeline"]["instructions"];
-        trace!("instructions: {instructions}");
+        tracing::trace!("instructions: {instructions}");
 
         let entries = findkey("entries", instructions.to_owned()).unwrap_or_default();
         let entries = entries
@@ -161,10 +160,10 @@ impl TwAPI {
         let bottom_cursor = find_object(entries.to_owned(), "entryId", "cursor-bottom").unwrap_or_default();
         let bottom_cursor = bottom_cursor["content"]["value"].as_str().unwrap_or_default();
 
-        trace!("bottom_cursor {bottom_cursor}");
+        tracing::trace!("bottom_cursor {bottom_cursor}");
         let data_entries: Vec<Value> = entries.iter().filter(|entry| {
             let entry_id = entry["entryId"].as_str().unwrap_or_default();
-            debug!("entry id: {entry_id}");
+            tracing::debug!("entry id: {entry_id}");
             return entry_id.starts_with("user-");
         }).cloned().collect();
         // Assuming you want to return a clone of the data
@@ -210,7 +209,7 @@ impl TwAPI {
     }
 
     pub async fn users_lookup(&mut self, ids: Vec<String>) -> Result<Vec<Value>> {
-        debug!("checking on ids {ids:?}");
+        tracing::debug!("checking on ids {ids:?}");
         if ids.len() > 100 {
             bail!("ids should be no more than 100")
         }
