@@ -1,6 +1,6 @@
 use chrono::{DateTime, FixedOffset};
-use serde::Deserialize;
 use eyre::{bail, ContextCompat, Result};
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct ExpandedURL {
@@ -386,7 +386,11 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Result<Tweet> {
             .unwrap_or(&"".to_string())
             .ne(""))
         || (t.retweeted_status_result.is_some()
-            && t.retweeted_status_result.as_ref().context("retweet status result is none")?.result.is_some());
+            && t.retweeted_status_result
+                .as_ref()
+                .context("retweet status result is none")?
+                .result
+                .is_some());
     let retweeted_status_id = t
         .retweeted_status_id_str
         .as_ref()
@@ -395,7 +399,12 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Result<Tweet> {
     let mut views = 0i128;
 
     if t.ext_views.is_some() {
-        views = t.ext_views.as_ref().context("ext_views is none")?.count.parse::<i128>()?;
+        views = t
+            .ext_views
+            .as_ref()
+            .context("ext_views is none")?
+            .count
+            .parse::<i128>()?;
     }
 
     let hash_tags: Vec<String> = t
@@ -433,7 +442,10 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Result<Tweet> {
                         let bitrate = variant.bitrate.unwrap_or(0);
                         if bitrate > max_bitrate {
                             max_bitrate = bitrate;
-                            url = variant.url.strip_suffix("?tag=10").context("cant strip video suffix")?;
+                            url = variant
+                                .url
+                                .strip_suffix("?tag=10")
+                                .context("cant strip video suffix")?;
                         }
                     }
                 }
@@ -454,7 +466,10 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Result<Tweet> {
             _ => {}
         }
         if !sensitive_content && i.ext_sensitive_media_warning.is_some() {
-            let warning = i.ext_sensitive_media_warning.as_ref().context("sensitive content but warning is none")?;
+            let warning = i
+                .ext_sensitive_media_warning
+                .as_ref()
+                .context("sensitive content but warning is none")?;
             sensitive_content = warning.adult_content || warning.graphic_violence || warning.other;
         }
     }
@@ -481,7 +496,12 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Result<Tweet> {
             .context("retweet status result is none")?
             .core;
         if let Some(core) = core {
-            let legacy_u = core.user_results.result.legacy.as_ref().context("legacy is none")?;
+            let legacy_u = core
+                .user_results
+                .result
+                .legacy
+                .as_ref()
+                .context("legacy is none")?;
             let legacy_t = &t
                 .retweeted_status_result
                 .as_ref()

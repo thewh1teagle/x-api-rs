@@ -1,13 +1,12 @@
+use super::TwAPI;
 use crate::BEARER_TOKEN;
 use eyre::{Context, Result};
 use serde_json::{json, Value};
-use super::TwAPI;
 
 const SEARCH_URL: &str = "https://twitter.com/i/api/graphql/k3027HdkVqbuDPpdoniLKA/Viewer";
 
 impl TwAPI {
     pub async fn me(&self) -> Result<Value> {
-
         let variables = json!(
             {"withCommunitiesMemberships": true,
                      "withSubscribedTab": true, "withCommunitiesCreation": true}
@@ -27,27 +26,31 @@ impl TwAPI {
             .header("Authorization", format!("Bearer {}", BEARER_TOKEN))
             .header("X-CSRF-Token", self.csrf_token.to_owned())
             .query(&q)
-            .build()
-            ?;
+            .build()?;
         let text = self.client.execute(req).await?.text().await?;
         let res: Value = serde_json::from_str(&text).context("can't convert response to json")?;
         tracing::debug!("me res {res}");
         return Ok(res);
     }
 
-    pub fn me_following(&mut self) {
-
-    }
+    pub fn me_following(&mut self) {}
 
     pub async fn me_rest_id(&mut self) -> Result<i64, Box<dyn std::error::Error>> {
         let me = self.me().await?;
         let res_id = me
-            .get("data").ok_or("data")?
-            .get("viewer").ok_or("viewer")?
-            .get("user_results").ok_or("viewer")?
-            .get("result").ok_or("viewer")?
-            .get("rest_id").ok_or("rest id")?.as_str().ok_or("str error")?.parse::<i64>()?;
+            .get("data")
+            .ok_or("data")?
+            .get("viewer")
+            .ok_or("viewer")?
+            .get("user_results")
+            .ok_or("viewer")?
+            .get("result")
+            .ok_or("viewer")?
+            .get("rest_id")
+            .ok_or("rest id")?
+            .as_str()
+            .ok_or("str error")?
+            .parse::<i64>()?;
         Ok(res_id)
-        
     }
 }

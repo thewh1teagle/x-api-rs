@@ -1,10 +1,10 @@
 use std::{path::PathBuf, sync::Arc};
 
 use super::{TwAPI, BEARER_TOKEN, GUEST_ACTIVE_URL, LOGIN_URL, VERIFY_CREDENTIALS_URL};
-use serde::Deserialize;
-use serde_json::{self, json};
 use eyre::{bail, Context, ContextCompat, Result};
 use reqwest_cookie_store;
+use serde::Deserialize;
+use serde_json::{self, json};
 
 #[derive(Clone, Debug, thiserror::Error)]
 #[error("Suspicious Login")]
@@ -75,26 +75,30 @@ impl TwAPI {
     pub fn new(session_path: Option<PathBuf>) -> Result<TwAPI> {
         let client_builder = reqwest::ClientBuilder::new();
         let cookie_store: Arc<reqwest_cookie_store::CookieStoreMutex>;
-    
+
         if let Some(session_path) = session_path.as_ref().filter(|path| path.exists()) {
             let file = std::fs::File::open(session_path.to_str().unwrap())
                 .map(std::io::BufReader::new)
                 .unwrap();
             tracing::debug!("Load json session from {session_path:?}");
-            let provider: reqwest_cookie_store::CookieStore = reqwest_cookie_store::CookieStore::load_json(file).unwrap();
-            
-            cookie_store = std::sync::Arc::new(reqwest_cookie_store::CookieStoreMutex::new(provider));
+            let provider: reqwest_cookie_store::CookieStore =
+                reqwest_cookie_store::CookieStore::load_json(file).unwrap();
+
+            cookie_store =
+                std::sync::Arc::new(reqwest_cookie_store::CookieStoreMutex::new(provider));
         } else {
-            let provider: reqwest_cookie_store::CookieStore = reqwest_cookie_store::CookieStore::new(None);
-            
-            cookie_store = std::sync::Arc::new(reqwest_cookie_store::CookieStoreMutex::new(provider));
+            let provider: reqwest_cookie_store::CookieStore =
+                reqwest_cookie_store::CookieStore::new(None);
+
+            cookie_store =
+                std::sync::Arc::new(reqwest_cookie_store::CookieStoreMutex::new(provider));
         }
-    
+
         let client = client_builder
             .cookie_provider(std::sync::Arc::clone(&cookie_store))
             .build()
             .context("can't build cookie store")?;
-    
+
         Ok(TwAPI {
             client,
             csrf_token: String::from(""),
@@ -103,7 +107,7 @@ impl TwAPI {
             session_path,
         })
     }
-    
+
     async fn get_flow(&mut self, body: serde_json::Value) -> Result<Flow> {
         if self.guest_token.is_empty() {
             self.get_guest_token().await?
@@ -119,7 +123,8 @@ impl TwAPI {
             .header("X-Twitter-Active-User", "yes")
             .header("X-Twitter-Client-Language", "en")
             .json(&body)
-            .send().await?;
+            .send()
+            .await?;
 
         let cookies = res.cookies();
         for cookie in cookies {
@@ -133,10 +138,7 @@ impl TwAPI {
         return Ok(result);
     }
 
-    pub async fn get_flow_token(
-        &mut self,
-        data: serde_json::Value,
-    ) -> Result<Option<Flow>> {
+    pub async fn get_flow_token(&mut self, data: serde_json::Value) -> Result<Option<Flow>> {
         let res = self.get_flow(data).await;
         match res {
             Ok(info) => {
@@ -154,7 +156,7 @@ impl TwAPI {
             }
             Err(e) => {
                 bail!("Request error: {}", e.to_string())
-            },
+            }
         }
     }
 
@@ -164,14 +166,13 @@ impl TwAPI {
             .client
             .post(GUEST_ACTIVE_URL)
             .header("Authorization", token)
-            .send().await?;
+            .send()
+            .await?;
         let op = res.json::<serde_json::Value>().await?;
         let guest_token = op.get("guest_token").context("cant get guest_token")?;
         self.guest_token = guest_token.to_string();
         Ok(())
     }
-
-
 
     pub async fn before_password_steps(&mut self, username: String) -> Result<Flow> {
         let data = json!(
@@ -187,7 +188,11 @@ impl TwAPI {
                 }
             }
         );
-        let flow_token = self.get_flow_token(data).await?.context("cant get folow token")?.flow_token;
+        let flow_token = self
+            .get_flow_token(data)
+            .await?
+            .context("cant get folow token")?
+            .flow_token;
 
         // flow instrumentation step
         let data = json!(
@@ -202,7 +207,11 @@ impl TwAPI {
                 }],
             }
         );
-        let flow_token = self.get_flow_token(data).await?.context("cant get folow token")?.flow_token;
+        let flow_token = self
+            .get_flow_token(data)
+            .await?
+            .context("cant get folow token")?
+            .flow_token;
 
         // flow username step
         let data = json!(
@@ -255,7 +264,11 @@ impl TwAPI {
                 "subtask_inputs": [{"subtask_id": subtask_id, "enter_text": {"text": username,"link":"next_link"}}]
             });
             // self.handle_suspicies(token.clone(), subtask_id.clone());
-            flow = self.get_flow_token(data).await.context("flow token is none")?.context("inner flow token is none")?;
+            flow = self
+                .get_flow_token(data)
+                .await
+                .context("flow token is none")?
+                .context("inner flow token is none")?;
         } else {
             flow = self.before_password_steps(username.into()).await?;
         }
@@ -273,7 +286,11 @@ impl TwAPI {
             }
         );
 
-        let flow_token = self.get_flow_token(data).await?.context("flow token is none in password step")?.flow_token;
+        let flow_token = self
+            .get_flow_token(data)
+            .await?
+            .context("flow token is none in password step")?
+            .flow_token;
 
         // flow duplication check
         let data = json!(
@@ -334,7 +351,11 @@ impl TwAPI {
             .header("X-CSRF-Token", self.csrf_token.to_owned())
             .build()
             .context("Cant build http request in logged in")?;
-        let res = self.client.execute(req).await.context("failed execute request")?;
+        let res = self
+            .client
+            .execute(req)
+            .await
+            .context("failed execute request")?;
         let cookies = res.cookies();
         for cookie in cookies {
             if cookie.name().eq("ct0") {
@@ -342,15 +363,16 @@ impl TwAPI {
             }
         }
         let text = res.text().await.context("res is not text")?;
-        let res: VerifyCredentials = serde_json::from_str(&text).context("res is not diseralizable")?;
+        let res: VerifyCredentials =
+            serde_json::from_str(&text).context("res is not diseralizable")?;
         Ok(res.errors.is_none())
     }
 
     pub fn save_session(&mut self) -> Result<()> {
         if let Some(path) = &self.session_path {
             let mut writer = std::fs::File::create(path)
-            .map(std::io::BufWriter::new)
-            .unwrap();
+                .map(std::io::BufWriter::new)
+                .unwrap();
             let store = self.cookie_store.lock().unwrap();
             store.save_json(&mut writer).unwrap();
             Ok(())

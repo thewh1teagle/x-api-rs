@@ -2,10 +2,9 @@
 cp .env.template .env
 cargo run --example simple
 */
+use dotenvy::dotenv;
 use std::path::PathBuf;
 use x_api_rs::auth::SuspiciousLoginError;
-use dotenvy::dotenv;
-
 
 fn read_string() -> String {
     let mut input = String::new();
@@ -32,21 +31,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let error = err.downcast_ref::<SuspiciousLoginError>().unwrap();
                 println!("Enter your username (eg. @user): ");
                 let username = read_string();
-                api.login(&username, &password, "".into(), Some(error.1.clone())).await?;
+                api.login(&username, &password, "".into(), Some(error.1.clone()))
+                    .await?;
             }
             Ok(_) => {}
         }
-        
+
         api.save_session().unwrap();
     }
     // always call this for extract csrf
     let is_logged_in = api.is_logged_in().await?;
     tracing::info!("is logged: {is_logged_in}");
-    
+
     let user_id = api.me_rest_id().await?;
     let res = api.get_following_ids(user_id.to_string(), -1).await?;
     tracing::debug!("response: {res:?}");
-    let ids = res.entries.iter().map(|v| v.as_i64().unwrap_or_default().to_string()).collect();
+    let ids = res
+        .entries
+        .iter()
+        .map(|v| v.as_i64().unwrap_or_default().to_string())
+        .collect();
     let res = api.users_lookup(ids).await?;
     tracing::debug!("response: {res:?}");
     // loop {
@@ -58,5 +62,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     }
     // }
     Ok(())
-    
 }

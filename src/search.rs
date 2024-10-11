@@ -1,21 +1,16 @@
-use crate::BEARER_TOKEN;
-use serde_json::json;
-use std::cmp;
-use eyre::{ContextCompat, Result};
 use super::{
     types::{parse_legacy_tweet, Data, Tweet},
     TwAPI,
 };
+use crate::BEARER_TOKEN;
+use eyre::{ContextCompat, Result};
+use serde_json::json;
+use std::cmp;
 
 const SEARCH_URL: &str = "https://twitter.com/i/api/graphql/nK1dw4oV3k4w5TdtcAdSww/SearchTimeline";
 
 impl TwAPI {
-    pub async fn search(
-        &self,
-        query: &str,
-        limit: u8,
-        cursor: &str,
-    ) -> Result<Data> {
+    pub async fn search(&self, query: &str, limit: u8, cursor: &str) -> Result<Data> {
         let limit = cmp::min(50u8, limit);
 
         let mut variables = json!(
@@ -71,10 +66,7 @@ impl TwAPI {
             .header("X-CSRF-Token", self.csrf_token.to_owned())
             .query(&q)
             .build()?;
-        let text = self
-            .client
-            .execute(req).await?
-            .text().await?;
+        let text = self.client.execute(req).await?.text().await?;
         let res: Data = serde_json::from_str(&text)?;
         return Ok(res);
     }
@@ -122,7 +114,12 @@ impl TwAPI {
                             if core.is_none() {
                                 continue;
                             }
-                            let u = core.context("core is none")?.user_results.result.legacy.context("legacy is none")?;
+                            let u = core
+                                .context("core is none")?
+                                .user_results
+                                .result
+                                .legacy
+                                .context("legacy is none")?;
                             let t = item.tweet_results.result.legacy;
                             if let Ok(tweet) = parse_legacy_tweet(&u, &t) {
                                 tweets.push(tweet)

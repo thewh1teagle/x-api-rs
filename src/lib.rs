@@ -22,6 +22,5 @@ pub struct TwAPI {
     guest_token: String,
     csrf_token: String,
     cookie_store: Arc<reqwest_cookie_store::CookieStoreMutex>,
-    session_path: Option<PathBuf>
+    session_path: Option<PathBuf>,
 }
-

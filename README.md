@@ -8,10 +8,13 @@ X/Twitter's `API` in Rust
 cargo add x-api-rs
 ```
 
-
 ## Examples
+
 see [examples](examples) folder
 
+## Gotchas
+
+- It's recommend to use the `Username` rather then the `Email` since it has less captcha protections.
 
 ## Credits
 

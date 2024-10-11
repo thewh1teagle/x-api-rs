@@ -1,25 +1,21 @@
-use crate::BEARER_TOKEN;
-use serde::{Serialize, Deserialize};
-use serde_json::{json, Value};
 use super::TwAPI;
-use eyre::{Result, bail};
+use crate::BEARER_TOKEN;
+use eyre::{bail, Result};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
 const SEARCH_URL: &str =
     "https://twitter.com/i/api/graphql/9zwVLJ48lmVUk8u_Gh9DmA/ProfileSpotlightsQuery";
 
-const FOLLOWING_URL: &str =
-    "https://twitter.com/i/api/graphql/OLcddmNLPVXGDgSdSVj0ow/Following";
+const FOLLOWING_URL: &str = "https://twitter.com/i/api/graphql/OLcddmNLPVXGDgSdSVj0ow/Following";
 
-const FOLLOWERS_URL: &str =
-    "https://twitter.com/i/api/graphql/WWFQL1d4gxtqm2mjZCRa-Q/Followers";
-
-    
+const FOLLOWERS_URL: &str = "https://twitter.com/i/api/graphql/WWFQL1d4gxtqm2mjZCRa-Q/Followers";
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PaginationResponse {
     pub cursor: String,
     pub entries: Vec<Value>,
-    pub has_more: bool
+    pub has_more: bool,
 }
 
 fn findkey(name: &str, value: Value) -> Option<Value> {
@@ -69,7 +65,10 @@ fn find_object(data: Vec<Value>, key_start_with: &str, value_start_with: &str) -
 }
 
 impl TwAPI {
-    pub async fn user_id(&mut self, username: String) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn user_id(
+        &mut self,
+        username: String,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let username = username.replace("@", "");
         if username.as_bytes()[0].is_ascii_digit() {
             return Ok(username);
@@ -114,14 +113,17 @@ impl TwAPI {
         }
     }
 
-    pub async fn get_friends(&mut self, user_id: i64, following: bool, start_cursor: Option<String>) -> Result<PaginationResponse, Box<dyn std::error::Error>> {
+    pub async fn get_friends(
+        &mut self,
+        user_id: i64,
+        following: bool,
+        start_cursor: Option<String>,
+    ) -> Result<PaginationResponse, Box<dyn std::error::Error>> {
         let variables = json!(
             {"userId": user_id, "count": 2,
                  "includePromotedContent": true, "cursor": start_cursor, "product": "latest"}
         );
         tracing::debug!("variables: {variables}");
-
-
 
         let features = json!({
             "responsive_web_graphql_exclude_directive_enabled": true, "verified_phone_label_enabled": true,
@@ -139,7 +141,11 @@ impl TwAPI {
             ("features", features.to_string()),
         ];
 
-        let url = if following {FOLLOWING_URL} else {FOLLOWERS_URL};
+        let url = if following {
+            FOLLOWING_URL
+        } else {
+            FOLLOWERS_URL
+        };
         let req = self
             .client
             .get(url)
@@ -157,27 +163,42 @@ impl TwAPI {
             .as_array()
             .ok_or_else(|| "entries is not an array or not present".to_string())?;
 
-        let bottom_cursor = find_object(entries.to_owned(), "entryId", "cursor-bottom").unwrap_or_default();
-        let bottom_cursor = bottom_cursor["content"]["value"].as_str().unwrap_or_default();
+        let bottom_cursor =
+            find_object(entries.to_owned(), "entryId", "cursor-bottom").unwrap_or_default();
+        let bottom_cursor = bottom_cursor["content"]["value"]
+            .as_str()
+            .unwrap_or_default();
 
         tracing::trace!("bottom_cursor {bottom_cursor}");
-        let data_entries: Vec<Value> = entries.iter().filter(|entry| {
-            let entry_id = entry["entryId"].as_str().unwrap_or_default();
-            tracing::debug!("entry id: {entry_id}");
-            return entry_id.starts_with("user-");
-        }).cloned().collect();
+        let data_entries: Vec<Value> = entries
+            .iter()
+            .filter(|entry| {
+                let entry_id = entry["entryId"].as_str().unwrap_or_default();
+                tracing::debug!("entry id: {entry_id}");
+                return entry_id.starts_with("user-");
+            })
+            .cloned()
+            .collect();
         // Assuming you want to return a clone of the data
-        return Ok(PaginationResponse{cursor: bottom_cursor.into(), entries: data_entries.to_owned(), has_more: data_entries.len() > 0 && !bottom_cursor.is_empty()});
+        return Ok(PaginationResponse {
+            cursor: bottom_cursor.into(),
+            entries: data_entries.to_owned(),
+            has_more: data_entries.len() > 0 && !bottom_cursor.is_empty(),
+        });
     }
 
-    pub async fn get_follower_ids(&mut self, user_id: String, cursor: i32) -> Result<PaginationResponse> {
-
+    pub async fn get_follower_ids(
+        &mut self,
+        user_id: String,
+        cursor: i32,
+    ) -> Result<PaginationResponse> {
         let q = [
             ("user_id", &user_id),
             ("cursor", &cursor.to_string()),
-            ("count", &"5000".to_string()) // max...
+            ("count", &"5000".to_string()), // max...
         ];
-        let req = self.client
+        let req = self
+            .client
             .get("https://api.twitter.com/1.1/followers/ids.json")
             .header("Authorization", format!("Bearer {}", BEARER_TOKEN))
             .header("X-CSRF-Token", self.csrf_token.to_owned())
@@ -186,17 +207,25 @@ impl TwAPI {
         let text = self.client.execute(req).await?.text().await?;
         let res: Value = serde_json::from_str(&text)?;
         let cursor = res["next_cursor_str"].as_str().unwrap_or("0");
-        Ok(PaginationResponse {cursor: cursor.into(), entries: res["ids"].as_array().unwrap_or(&Vec::new()).to_vec(), has_more: cursor != "0"})
+        Ok(PaginationResponse {
+            cursor: cursor.into(),
+            entries: res["ids"].as_array().unwrap_or(&Vec::new()).to_vec(),
+            has_more: cursor != "0",
+        })
     }
 
-    pub async fn get_following_ids(&mut self, user_id: String, cursor: i32) -> Result<PaginationResponse> {
-
+    pub async fn get_following_ids(
+        &mut self,
+        user_id: String,
+        cursor: i32,
+    ) -> Result<PaginationResponse> {
         let q = [
             ("user_id", &user_id),
             ("cursor", &cursor.to_string()),
-            ("count", &"5000".to_string()) // max...
+            ("count", &"5000".to_string()), // max...
         ];
-        let req = self.client
+        let req = self
+            .client
             .get("https://api.twitter.com/1.1/friends/ids.json")
             .header("Authorization", format!("Bearer {}", BEARER_TOKEN))
             .header("X-CSRF-Token", self.csrf_token.to_owned())
@@ -205,7 +234,11 @@ impl TwAPI {
         let text = self.client.execute(req).await?.text().await?;
         let res: Value = serde_json::from_str(&text)?;
         let cursor = res["next_cursor_str"].as_str().unwrap_or("0");
-        Ok(PaginationResponse {cursor: cursor.into(), entries: res["ids"].as_array().unwrap_or(&Vec::new()).to_vec(), has_more: cursor != "0"})
+        Ok(PaginationResponse {
+            cursor: cursor.into(),
+            entries: res["ids"].as_array().unwrap_or(&Vec::new()).to_vec(),
+            has_more: cursor != "0",
+        })
     }
 
     pub async fn users_lookup(&mut self, ids: Vec<String>) -> Result<Vec<Value>> {
@@ -213,10 +246,9 @@ impl TwAPI {
         if ids.len() > 100 {
             bail!("ids should be no more than 100")
         }
-        let q = [
-            ("user_id", &ids.join(",")),
-        ];
-        let req = self.client
+        let q = [("user_id", &ids.join(","))];
+        let req = self
+            .client
             .get("https://api.twitter.com/1.1/users/lookup.json")
             .header("Authorization", format!("Bearer {}", BEARER_TOKEN))
             .header("X-CSRF-Token", self.csrf_token.to_owned())
@@ -226,5 +258,4 @@ impl TwAPI {
         let res: Value = serde_json::from_str(&text)?;
         Ok(res.as_array().unwrap_or(&Vec::new()).to_vec())
     }
-
 }
