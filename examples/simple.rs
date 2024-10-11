@@ -1,5 +1,6 @@
 /*
 cp .env.template .env
+export RUST_LOG=DEBUG
 cargo run --example simple
 */
 use dotenvy::dotenv;
