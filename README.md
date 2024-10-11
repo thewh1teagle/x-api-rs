@@ -23,3 +23,5 @@ see [examples](examples) folder
 [ReverseEngineeredTwitterAPI](https://github.com/Amovane/ReverseEngineeredTwitterAPI)
 
 [twitter-api-client](https://github.com/trevorhobenshield/twitter-api-client)
+
+[twitter-scraper](https://github.com/imperatrona/twitter-scraper)

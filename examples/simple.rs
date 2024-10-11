@@ -34,7 +34,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             api.login(&username, &password, "", Some(error.1.clone()))
                 .await?;
         }
-
         api.save_session().unwrap();
     }
     // always call this for extract csrf
