@@ -69,9 +69,9 @@ impl TwAPI {
         &mut self,
         username: String,
     ) -> Result<String, Box<dyn std::error::Error>> {
-        let username = username.replace("@", "");
+        let username = username.replace('@', "");
         if username.as_bytes()[0].is_ascii_digit() {
-            return Ok(username);
+            Ok(username)
         } else {
             let variables = json!(
                 {"screen_name": username}
@@ -109,7 +109,7 @@ impl TwAPI {
                 .as_str()
                 .ok_or("convert to str failed for rest id")?
                 .to_string();
-            return Ok(rest_id);
+            Ok(rest_id)
         }
     }
 
@@ -175,16 +175,16 @@ impl TwAPI {
             .filter(|entry| {
                 let entry_id = entry["entryId"].as_str().unwrap_or_default();
                 tracing::debug!("entry id: {entry_id}");
-                return entry_id.starts_with("user-");
+                entry_id.starts_with("user-")
             })
             .cloned()
             .collect();
         // Assuming you want to return a clone of the data
-        return Ok(PaginationResponse {
+        Ok(PaginationResponse {
             cursor: bottom_cursor.into(),
             entries: data_entries.to_owned(),
-            has_more: data_entries.len() > 0 && !bottom_cursor.is_empty(),
-        });
+            has_more: !data_entries.is_empty() && !bottom_cursor.is_empty(),
+        })
     }
 
     pub async fn get_follower_ids(

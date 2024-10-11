@@ -68,7 +68,7 @@ impl TwAPI {
             .build()?;
         let text = self.client.execute(req).await?.text().await?;
         let res: Data = serde_json::from_str(&text)?;
-        return Ok(res);
+        Ok(res)
     }
 
     pub async fn search_tweets(
@@ -98,10 +98,8 @@ impl TwAPI {
                     if item.entry.is_some() {
                         let entry = item.entry.context("entry is none")?;
                         let cursor_type = entry.content.cursor_type.unwrap_or("".to_string());
-                        if cursor_type.eq("Bottom") {
-                            if entry.content.value.is_some() {
-                                cursor = entry.content.value.context("content value is none")?;
-                            }
+                        if cursor_type.eq("Bottom") && entry.content.value.is_some() {
+                            cursor = entry.content.value.context("content value is none")?;
                         }
                     }
                     for entry in item.entries {

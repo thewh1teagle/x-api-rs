@@ -26,15 +26,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut api = x_api_rs::TwAPI::new(Some(cookies_path.clone()))?;
     if !cookies_path.exists() {
         let result = api.login(&username, &password, "", None).await;
-        match result {
-            Err(err) => {
-                let error = err.downcast_ref::<SuspiciousLoginError>().unwrap();
-                println!("Enter your username (eg. @user): ");
-                let username = read_string();
-                api.login(&username, &password, "".into(), Some(error.1.clone()))
-                    .await?;
-            }
-            Ok(_) => {}
+        if let Err(error) = result {
+            let error = error.downcast_ref::<SuspiciousLoginError>().unwrap();
+            println!("Enter your username (eg. @user): ");
+            let username = read_string();
+            api.login(&username, &password, "", Some(error.1.clone()))
+                .await?;
         }
 
         api.save_session().unwrap();

@@ -480,7 +480,7 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Result<Tweet> {
 
     let mut time_parsed = chrono::offset::Utc::now().fixed_offset();
     if t.time.is_some() {
-        time_parsed = DateTime::parse_from_rfc2822(&t.time.as_ref().context("time is none")?)?;
+        time_parsed = DateTime::parse_from_rfc2822(t.time.as_ref().context("time is none")?)?;
     }
     let timestamp = time_parsed.timestamp();
     let html = t.full_text.to_owned();
@@ -510,7 +510,7 @@ pub fn parse_legacy_tweet(u: &LegacyUser, t: &LegacyTweet) -> Result<Tweet> {
                 .as_ref()
                 .context("retweeted status result is none")?
                 .legacy;
-            retweeted_status = Some(Box::new(parse_legacy_tweet(&legacy_u, &legacy_t)?));
+            retweeted_status = Some(Box::new(parse_legacy_tweet(legacy_u, legacy_t)?));
         }
     }
     let tweet = Tweet {

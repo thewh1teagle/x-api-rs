@@ -30,7 +30,7 @@ impl TwAPI {
         let text = self.client.execute(req).await?.text().await?;
         let res: Value = serde_json::from_str(&text).context("can't convert response to json")?;
         tracing::debug!("me res {res}");
-        return Ok(res);
+        Ok(res)
     }
 
     pub fn me_following(&mut self) {}

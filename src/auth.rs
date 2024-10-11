@@ -118,7 +118,7 @@ impl TwAPI {
             .header("Authorization", format!("Bearer {}", BEARER_TOKEN))
             .header("Content-Type", "application/json")
             .header("User-Agent", "TwitterAndroid/99")
-            .header("X-Guest-Token", self.guest_token.replace("\"", ""))
+            .header("X-Guest-Token", self.guest_token.replace('"', ""))
             .header("X-Twitter-Auth-Type", "OAuth2Client")
             .header("X-Twitter-Active-User", "yes")
             .header("X-Twitter-Client-Language", "en")
@@ -135,14 +135,14 @@ impl TwAPI {
         let text = res.text().await?;
         tracing::debug!("text: {text}");
         let result: Flow = serde_json::from_str(text.as_str())?;
-        return Ok(result);
+        Ok(result)
     }
 
     pub async fn get_flow_token(&mut self, data: serde_json::Value) -> Result<Option<Flow>> {
         let res = self.get_flow(data).await;
         match res {
             Ok(info) => {
-                if info.subtasks.len() > 0 {
+                if !info.subtasks.is_empty() {
                     let subtask_id = info.subtasks[0].subtask_id.as_str();
                     match subtask_id {
                         // "LoginEnterAlternateIdentifierSubtask"
@@ -152,7 +152,7 @@ impl TwAPI {
                         _ => return Ok(Some(info)),
                     }
                 }
-                return Ok(Some(info));
+                Ok(Some(info))
             }
             Err(e) => {
                 bail!("Request error: {}", e.to_string())
@@ -309,7 +309,7 @@ impl TwAPI {
         match flow_token {
             Err(e) => {
                 let mut confirmation_subtask = "";
-                for item in vec!["LoginAcid", "LoginTwoFactorAuthChallenge"] {
+                for item in ["LoginAcid", "LoginTwoFactorAuthChallenge"] {
                     if e.to_string().contains(item) {
                         confirmation_subtask = item;
                         break;
@@ -339,7 +339,7 @@ impl TwAPI {
                 }
                 Ok(None)
             }
-            Ok(_) => return Ok(None),
+            Ok(_) => Ok(None),
         }
     }
 
